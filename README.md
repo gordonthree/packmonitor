@@ -11,7 +11,7 @@
 5. Provide over-temperature disconnect
 
 ## Features:
-1. Hall effect current sensor:TMCS1108
+1. Hall effect current sensor: TMCS1108
     1. Check existing inventory for ACS7xx sensors!
 2. Atmel AVR Micro: ATMEGA4808 TQFP-32
 3. FRAM data storage (SPI): FM25640B-G
@@ -28,8 +28,8 @@
     1. Battery Pos In and Out (14 ga)
     2. Battery Ground (14 ga)
     3. 4-pin jst T0, T1 thermistors
-2. Upstream interface: i2c
-    4. 4-pin connector of some sort; +5v, SDA, SCL, GND
+2. Upstream interface: SPI
+    4. 6-pin connector of some sort; +5v, SCK, MOSI, MISO, CS, GND
 
 ## Indicators: (maybe)
 1. Bus power
