@@ -1,3 +1,6 @@
+.pio/build/Upload_UART/.sconsign310.dblite
+.vscode/c_cpp_properties.json
+
 # Prerequisites
 *.d
 
@@ -58,6 +61,8 @@ dkms.conf
 .gcc-flags.json
 **.pio/
 .pio/build/*
+.pio/build/Upload_UART/*
+.pio/
 
 # vscode stuff!
 **.vscode/
@@ -66,6 +71,7 @@ dkms.conf
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+.vscode/
 
 # Local History for Visual Studio Code
 .history/
