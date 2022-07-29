@@ -71,3 +71,5 @@ dkms.conf
 
 # Built Visual Studio Code Extensions
 *.vsix
+.vscode/extensions.json
+.vscode/launch.json
