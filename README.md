@@ -11,10 +11,9 @@
 5. Provide over-temperature disconnect
 
 ## Features:
-
+1. Atmel AVR Micro: ATMEGA4808 TQFP-32
 1. Hall effect current sensor: TMCS1108
-   * Check existing inventory for ACS7xx sensors!
-2. Atmel AVR Micro: ATMEGA4808 TQFP-32
+   * Check my inventory for ACS7xx sensors!
 3. FRAM data storage : i2c FM25640B-G
 4. Precision ADC: i2c NAU7802
 5. Hot swap buffer: 74HC243
@@ -31,27 +30,27 @@
    * Battery Pos In and Out (14 ga)
    * Battery Ground (14 ga)
    * 6-pin jst for three thermistors
-2. Upstream interface: SPI
+1. Upstream interface: SPI
    * 6-pin connector of some sort; +5v, SCK, MOSI, MISO, CS, GND
    * 74HC243 quad tri-state buffer for hot insertion protection
 
 ## Indicators:
 
 1. Bus controlled:
-   1. Bus Power (from vcc)
-   2. Bus active (from CS line)
+   * Bus power (from vcc)
+   * Bus active (from CS line)
 2. uC controlled:
-   1. Battery SOC (three leds)
-   2. Battery health (red/green)
+   * Battery SOC (three leds)
+   * Battery health (red/green)
 
-## i2c Client Commands:
+## Client Commands:
 
 1. Set time (how many bytes?)
-2. Set high-current limit, 0 to 50 in 500ma steps, default 10a
-3. Set high-temp limit, 30 to 60c in 1c steps, default 45c
-4. Set low-temp limit -15 to 5c in 1c steps, default 0c
-5. Set high-voltage limit 3.65 to 4.30 in 10mV steps, default 4.20v
-6. Set low-voltage limit, 2.50 to 3.00 in 10mV steps, default 2.55v
+2. Set high-current limit, 0 to 50 in 500ma steps, default 10a (see table TBD)
+3. Set high-temp limit, 30 to 60c in 0.5c steps, default 45c (see table TBD)
+4. Set low-temp limit -15 to 5c in 0.5c steps, default 0c (see table TBD)
+5. Set pack high-voltage in 10mv steps, range 9.6 to 26.0 (see table TBD)
+6. Set low-voltage limit, 2.50 to 3.00 in 10mV steps, default 2.55v (see table TBD)
 7. Set config bits (0 disabled, 1 enabled)
    * Bit 7: Disable all protection (default 0)
      * 1: Monitor pack only, ignore all fault conditions
@@ -117,7 +116,7 @@
 
 1. Data logging without a RTC?
 1. High side or low side disconnect?
-1. More complicated than it needs to be?
+
 
 ## Resources:
 
