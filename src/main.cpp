@@ -9,11 +9,12 @@
 int i=0;
 volatile boolean received;
 
-volatile int Slavereceived, Slavesend;
+volatile uint8_t Slavereceived, Slavesend;
 
 int buttonvalue;
 
 uint8_t ledX = 0;
+uint8_t ledSPIF = 0;
 
 char SPI_SlaveReceive(void);
 
@@ -49,38 +50,37 @@ void setup() {
 // SPI Slave ISR
 ISR (SPI_STC_vect)
 {
-  Slavereceived = SPI_SlaveReceive();                  
+  Slavereceived = SPI_SlaveReceive(); // read data from register
+  ledSPIF = ledSPIF ^ 1; // toggle led as interrupt fires
   received = true;                       
 }
 
 char SPI_SlaveReceive(void)
 {
+  uint8_t recv = 0;
   /* Wait for reception complete */
-  while(!(SPSR & (1<<SPIF)))
-  ;
-  /* Return Data Register */
-  return SPDR;
+  while(!(SPSR & (1<<SPIF)));
+  recv = SPDR; // read data register
+  SPDR = recv; // send some data back?
+
+  return recv;
 }
 
 // the loop function runs over and over again forever
 void loop() {
   i++;
+  digitalWrite(LED2, ledSPIF);
 
   if (received){
-    digitalWrite(LED2, HIGH); //Sets pin as HIGH LED ON
     Serial.print("Slave recv: ");
     Serial.println(Slavereceived);
     received = false; // clear flag
-  } else {
-    digitalWrite(LED2, LOW);     //Sets pin as LOW LED OFF
-    //Serial.println("Slave LED OFF");
   }
 
   if (i>1000){
     i=0;
     ledX = ledX ^ 1; // xor previous state
     digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
-    //Serial.println("Toggle LED");
   }
 
   delay(1);
