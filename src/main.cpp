@@ -32,9 +32,9 @@ void setup() {
     
   // from the Microchip datasheet page 140
   SPCR = (1<<SPIE); // enable SPI interrupt
-  SPCR = (1<<SPE); // enable slave mode 
+  SPCR = (1<<SPE);  // enable slave mode 
   
-  SPI.attachInterrupt(); // enable interrupts for digital pins, no arguments on NANO
+  SPI.attachInterrupt(); // enable SPI receive flag interrupt, takes no arguments
 
   Serial.begin(115200);
 
