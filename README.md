@@ -160,3 +160,7 @@
 #### ADC:
 
 [https://www.nuvoton.com/export/resource-files/NAU7802%20Data%20Sheet%20V1.7.pdf](https://www.nuvoton.com/export/resource-files/NAU7802%20Data%20Sheet%20V1.7.pdf)
+
+### Logic Buffer:
+
+[https://www.ti.com/product/CD74HCT243#product-detail](https://www.ti.com/product/CD74HCT243#product-detail)
