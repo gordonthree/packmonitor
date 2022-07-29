@@ -2,10 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"name": "packmonitor",
-			"path": "../../Documents/PlatformIO/Projects/packmonitor"
 		}
 	],
 	"settings": {}
