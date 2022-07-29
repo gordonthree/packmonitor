@@ -56,10 +56,11 @@ dkms.conf
 .piolibdeps
 .clang_complete
 .gcc-flags.json
-.pio
+**.pio/
+.pio/build/*
 
 # vscode stuff!
-.vscode/*
+**.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -73,3 +74,4 @@ dkms.conf
 *.vsix
 .vscode/extensions.json
 .vscode/launch.json
+.vscode/c_cpp_properties.json
