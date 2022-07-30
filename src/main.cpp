@@ -10,10 +10,13 @@
 
 #define SCL PC5 // A5
 #define SDA PC4 // A4
+
 int i=0;
 bool reqEvnt = false;
 bool recvEvnt = false;
 uint8_t ledX = 0;
+
+char buff[50];
 
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
@@ -25,20 +28,21 @@ void requestEvent() { // master has requested data
 // function that executes whenever data is received from master
 // this function is registered as an event, see setup()
 void receiveEvent(int howMany) {
-  (void)howMany;                    // cast unused parameter to void to avoid compiler warning
-  uint16_t recvCnt = 0;             // counter for bytes received
+  Serial.printf("RX %u bytes: ", howMany);
   recvEvnt = true;                  // set event flag
-  while (1 < Wire.available()) {    // loop through all but the last
-    char c = Wire.read();           // receive byte as a character
-    Serial.print(c);                // print the character
-    recvCnt++;                      // increment counter
-    recvEvnt = true;                // set event flag
-  }
-  if (Wire.available()) {           // receive last byte
-    uint8_t x = Wire.read();        // receive byte as an integer
-    Serial.println(x);              // print the integer
-  } else {                          // no data received?
-    //if (recvCnt==0) { requestEvent(); }
+  uint8_t myRegister = Wire.read(); // grab first byte from the bus, it is our register address
+  if (myRegister==0x20) {
+    digitalWrite(LED4, LOW);        // turn off LED4
+    Serial.println("LED 4 off");
+  } else if (myRegister==0x21) {
+    digitalWrite(LED4, HIGH);       // turn on LED4
+    Serial.println("LED 4 on");
+  } else {                          // unknown register
+    while (Wire.available()) {      // loop through rest of buffer
+      char c = Wire.read();         // receive byte as a character
+      Serial.print(c);              // print the character
+    }
+    Serial.println();
   }
 }
 
@@ -71,11 +75,11 @@ void loop() {
 
   if (i>500){
     if (reqEvnt) {
-      Serial.print("Request event ");
+      //Serial.println(" TX ");
       reqEvnt = false;
     }
     if (recvEvnt) {
-      Serial.print("Receive event ");
+      //Serial.println(" RX ");
       recvEvnt = false;
     }
     i=0;
