@@ -1,80 +1,57 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <Wire.h>
 
-//SCK D13, MISO D12, MOSI D11, SS D10
+//SDA 18 (A4) SCL 19 (A5)
 #define LED1 PD2
 #define LED2 PD3
 #define LED3 PD4
+#define LED4 PD5
 
+#define SCL PC5 // A5
+#define SDA PC4 // A4
 int i=0;
-volatile boolean received = false;
-
-volatile uint8_t Slavereceived, Slavesend;
-
-int buttonvalue;
-
+bool wireEvnt = false;
 uint8_t ledX = 0;
-uint8_t ledSPIF = 0;
 
-uint8_t SPI_SlaveReceive(void); // define routine found toward end of code
+// function that executes whenever data is requested by master
+// this function is registered as an event, see setup()
+void requestEvent() {
+  Wire.write("hello "); // respond with message of 6 bytes
+  wireEvnt = true;
+  // as expected by master
+}
 
 void setup() {
+  // initialize I2C pins
+  pinMode(SCL, INPUT);
+  pinMode(SDA, INPUT);
+
   // initialize LEDs outputs
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
+  pinMode(LED4, OUTPUT);
 
-  // MISO as output, everything else input
-  pinMode(MISO, OUTPUT); 
-  pinMode(SS, INPUT);
-  pinMode(MOSI, INPUT);
-  pinMode(SCK, INPUT); // pin shared with LED_BUILTIN on NANO
-    
-  // from the Microchip datasheet page 140
-  SPCR = (1<<SPIE); // enable SPI interrupt
-  SPCR = (1<<SPE);  // enable slave mode 
-  
-  SPI.attachInterrupt(); // enable SPI receive flag interrupt, takes no arguments
+  Wire.begin(0x37);                // join i2c bus with address #8
 
   Serial.begin(115200);
 
   Serial.println("Hello, world!");
-}
 
-// SPI Slave ISR
-ISR (SPI_STC_vect)
-{
-  Slavereceived = SPI_SlaveReceive(); // read data from register
-  ledSPIF = ledSPIF ^ 1; // toggle led as interrupt fires
-  received = true;                       
-}
-
-uint8_t SPI_SlaveReceive(void)
-{
-  uint8_t recv = 0;
-  /* Wait for reception complete */
-  while(!(SPSR & (1<<SPIF)));
-  recv = SPDR; // read data register
-  SPDR = recv; // send some data back?
-
-  return recv;
+  Wire.onRequest(requestEvent); // register event
 }
 
 // the loop function runs over and over again forever
 void loop() {
   i++;
-  digitalWrite(LED2, ledSPIF);
+  digitalWrite(LED2, wireEvnt);
 
-  if (received){
-    Serial.print("Slave recv: ");
-    Serial.println(Slavereceived);
-    received = false; // clear flag
-  }
-
-  if (i>1000){
+  if (i>500){
     i=0;
     ledX = ledX ^ 1; // xor previous state
     digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
+    wireEvnt = false;
   }
 
   delay(1);
