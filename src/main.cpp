@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "UnixTime.h"
+#include "time.h"
 #include "TimeLib.h"
 
 //SDA 18 (A4) SCL 19 (A5)
@@ -74,10 +74,11 @@ void setup() {
   pinMode(LED4, OUTPUT);
 
   Wire.begin(0x37);                // join i2c bus with address #8
+  delay(2000);
 
   Serial.begin(115200);
 
-  Serial.println("Hello, world!");
+  Serial.println("\n\nHello, world!");
 
   Wire.onRequest(requestEvent); // register requestEvent event handler
   Wire.onReceive(receiveEvent); // register receiveEvent event handler
