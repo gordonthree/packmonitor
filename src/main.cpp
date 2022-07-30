@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <SPI.h>
 #include <Wire.h>
 
 //SDA 18 (A4) SCL 19 (A5)
