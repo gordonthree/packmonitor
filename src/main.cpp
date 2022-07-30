@@ -26,12 +26,19 @@ void requestEvent() { // master has requested data
 // this function is registered as an event, see setup()
 void receiveEvent(int howMany) {
   (void)howMany;  // cast unused parameter to void to avoid compiler warning
+  uint16_t recvCnt = 0;   // counter for bytes received
   while (1 < Wire.available()) { // loop through all but the last
     char c = Wire.read(); // receive byte as a character
     Serial.print(c);      // print the character
+    recvCnt++;            // increment counter
+    recvEvnt = true;      // set event flag
   }
-  int x = Wire.read();    // receive byte as an integer
-  Serial.println(x);      // print the integer
+  if (Wire.available()) { // receive last byte
+    uint8_t x = Wire.read();    // receive byte as an integer
+    Serial.println(x);      // print the integer
+  } else {                // no data received?
+    if (recvCnt==0) { requestEvent(); }
+  }
 }
 
 void setup() {
@@ -51,7 +58,7 @@ void setup() {
 
   Serial.println("Hello, world!");
 
-  Wire.onRequest(requestEvent); // register requestEvent event handler
+  //Wire.onRequest(requestEvent); // register requestEvent event handler
   Wire.onRequest(receiveEvent); // register receiveEvent event handler
 }
 
