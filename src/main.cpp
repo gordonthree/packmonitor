@@ -47,15 +47,14 @@ void receiveEvent(size_t howMany) {
     digitalWrite(LED4, HIGH);                     // turn on LED4
     Serial.println("Command 0x21: LED 4 on");
   } else if (rxData.cmdAddr==0x32) {
-    rxData.cmdData[rxData.dataLen] = '\0';        // terminate string with null
-    uint8_t i = rxData.dataLen;
-    uint8_t x = 0;
+    uint8_t i = rxData.dataLen;                   // length of string
+    uint8_t x = 0;                                // pointer for printing string
     Serial.print("Command 0x32: Message is ");
-    while (x<i) {
+    while (x<i) {                                 // print string one char at a time
       Serial.print((char) rxData.cmdData[x]);
       x++;
     }
-    Serial.println();
+    Serial.println();                             // send a newline  
   } else {                                        // unknown register
     Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
   }
