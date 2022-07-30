@@ -11,15 +11,27 @@
 #define SCL PC5 // A5
 #define SDA PC4 // A4
 int i=0;
-bool wireEvnt = false;
+bool reqEvnt = false;
+bool recvEvnt = false;
 uint8_t ledX = 0;
 
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
-void requestEvent() {
+void requestEvent() { // master has requested data
   Wire.write("hello "); // respond with message of 6 bytes
-  wireEvnt = true;
-  // as expected by master
+  reqEvnt = true; // set flag that we had this interaction
+}
+
+// function that executes whenever data is received from master
+// this function is registered as an event, see setup()
+void receiveEvent(int howMany) {
+  (void)howMany;  // cast unused parameter to void to avoid compiler warning
+  while (1 < Wire.available()) { // loop through all but the last
+    char c = Wire.read(); // receive byte as a character
+    Serial.print(c);      // print the character
+  }
+  int x = Wire.read();    // receive byte as an integer
+  Serial.println(x);      // print the integer
 }
 
 void setup() {
@@ -39,19 +51,29 @@ void setup() {
 
   Serial.println("Hello, world!");
 
-  Wire.onRequest(requestEvent); // register event
+  Wire.onRequest(requestEvent); // register requestEvent event handler
+  Wire.onRequest(receiveEvent); // register receiveEvent event handler
 }
 
 // the loop function runs over and over again forever
 void loop() {
   i++;
-  digitalWrite(LED2, wireEvnt);
+  digitalWrite(LED2, reqEvnt);
+  digitalWrite(LED3, recvEvnt);
 
   if (i>500){
+    if (reqEvnt) {
+      Serial.print("Request event ");
+      reqEvnt = false;
+    }
+    if (recvEvnt) {
+      Serial.print("Receive event ");
+      recvEvnt = false;
+    }
     i=0;
     ledX = ledX ^ 1; // xor previous state
     digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
-    wireEvnt = false;
+    
   }
 
   delay(1);
