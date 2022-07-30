@@ -10,7 +10,16 @@
 #define SCL PC5 // A5
 #define SDA PC4 // A4
 
-int i=0;
+struct I2C_RX_DATA {
+  uint8_t cmdAddr = 0;        // single byte command register
+  uint8_t cmdData[50] = {};   // room for twenty bytes of data
+  char padding[10] = {};      // padding not sure it's needed
+  size_t dataLen = 0;
+};
+
+I2C_RX_DATA rxData;
+
+uint16_t i=0;
 bool reqEvnt = false;
 bool recvEvnt = false;
 uint8_t ledX = 0;
@@ -26,22 +35,29 @@ void requestEvent() { // master has requested data
 
 // function that executes whenever data is received from master
 // this function is registered as an event, see setup()
-void receiveEvent(int howMany) {
-  Serial.printf("RX %u bytes: ", howMany);
-  recvEvnt = true;                  // set event flag
-  uint8_t myRegister = Wire.read(); // grab first byte from the bus, it is our register address
-  if (myRegister==0x20) {
-    digitalWrite(LED4, LOW);        // turn off LED4
-    Serial.println("LED 4 off");
-  } else if (myRegister==0x21) {
-    digitalWrite(LED4, HIGH);       // turn on LED4
-    Serial.println("LED 4 on");
-  } else {                          // unknown register
-    while (Wire.available()) {      // loop through rest of buffer
-      char c = Wire.read();         // receive byte as a character
-      Serial.print(c);              // print the character
+void receiveEvent(size_t howMany) {
+  Wire.readBytes( (uint8_t *) &rxData, howMany);  // transfer everything from buffer into memory
+  rxData.dataLen = howMany - 1;                   // save the data length for future use
+  Serial.printf("RX %u bytes: ", (uint8_t) rxData.dataLen);
+  recvEvnt = true;                                // set event flag
+  if (rxData.cmdAddr==0x20) {
+    digitalWrite(LED4, LOW);                      // turn off LED4
+    Serial.println("Command 0x20: LED 4 off");
+  } else if (rxData.cmdAddr==0x21) {
+    digitalWrite(LED4, HIGH);                     // turn on LED4
+    Serial.println("Command 0x21: LED 4 on");
+  } else if (rxData.cmdAddr==0x32) {
+    rxData.cmdData[rxData.dataLen] = '\0';        // terminate string with null
+    uint8_t i = rxData.dataLen;
+    uint8_t x = 0;
+    Serial.print("Command 0x32: Message is ");
+    while (x<i) {
+      Serial.print((char) rxData.cmdData[x]);
+      x++;
     }
     Serial.println();
+  } else {                                        // unknown register
+    Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
   }
 }
 
