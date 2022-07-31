@@ -17,6 +17,7 @@
 3. FRAM data storage : I2C FM24C64B
 4. Precision ADC: I2C NAU7802
 5. Hot swap buffer: I2C TCA4311a, PCA9508
+1. Host side i2c mux: PCA9545A
 6. Max PCB width 18mm
 7. Precision fixed resistor for thermistors?
    * Thermistors: NRL1504F3950B1F
@@ -93,6 +94,8 @@
 * [https://www.ti.com/product/TMCS1108](https://www.ti.com/product/TMCS1108)
 
 #### Hot swap buffers:
+
+* [https://www.digikey.com/en/products/detail/nxp-usa-inc/PCA9545AD-118/789953](https://www.digikey.com/en/products/detail/nxp-usa-inc/PCA9545AD-118/789953)
 
 * [https://www.ti.com/product/TCA4311A?qgpn=tca4311a](https://www.ti.com/product/TCA4311A?qgpn=tca4311a)
 #### Switching regulator (tiny):
