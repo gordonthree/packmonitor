@@ -82,22 +82,20 @@ void receiveEvent(size_t howMany) {
       masterData = rxData.cmdData[0];
       updateFRAM(rxData.cmdAddr, masterData);
     case 0x27: // set config1, byte
-    case 0x28: // (reserved))
+    case 0x28: // set config2, byte
     case 0x29: // read config0, byte
     case 0x2A: // read config1, byte
-    case 0x2B: // (reserved)
+    case 0x2B: // read config2, byte
     case 0x2B: // read status0, byte
     case 0x2C: // read status1, byte
     case 0x2D: // read status2, byte
-    case 0x2E: // (reserved)
-    case 0x2F: // (reserved)
-    case 0x30:
+    case 0x30: // clear coulomb counter, no data
       digitalWrite(LED4, LOW);                                       // turn off LED4
       //Serial.println("Command 0x30: LED 4 off");
-    case 0x31:
+    case 0x31: // read coulomb counter, signed long
       digitalWrite(LED4, HIGH);                     // turn on LED4
       //Serial.println("Command 0x31: LED 4 on");
-    case 0x32: 
+    case 0x32: // clear total amps counter, no data
       Serial.print("Command 0x32: Received ");
       i = rxData.dataLen;                   // length of string
       while (x<i) {                                 // print string one char at a time
@@ -105,17 +103,17 @@ void receiveEvent(size_t howMany) {
         x++;
       }
       Serial.println();                             // send a newline  
-    case 0x33:
-    case 0x34:
-    case 0x35:
-    case 0x36:
-    case 0x37:
-    case 0x38:
-    case 0x39:
-    case 0x3A:
-    case 0x3B:
-    case 0x3C:
-    case 0x3D:
+    case 0x33: // read instant amps, signed int
+    case 0x34: // read total amps in counter, unsigned long
+    case 0x35: // read total amps out counter, unsigned long
+    case 0x36: // read lifetime amps in, unsigned long
+    case 0x37: // read lifetime amps out, ubsigned long 
+    case 0x38: // clear voltage memory, no data
+    case 0x39: // read pack voltage, unsigned int
+    case 0x3A: // read lowest voltage memory, unsigned int
+    case 0x3B: // read lowest voltage timestamp, unsigned long
+    case 0x3C: // read highest voltage memory, unsigned int
+    case 0x3D: // read highest voltage timestamp, unsigned long
     case 0x3E:
     case 0x3F:
     case 0x40:
