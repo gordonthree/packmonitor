@@ -2,33 +2,9 @@
 #include <Wire.h>
 #include "time.h"
 #include "TimeLib.h"
+#include "pm_pins.h"
+#include "pm_struct.h"
 
-//SDA 18 (A4) SCL 19 (A5)
-#define LED1 PD2
-#define LED2 PD3
-#define LED3 PD4
-#define LED4 PD5
-
-#define SCL PC5 // A5
-#define SDA PC4 // A4
-
-const uint8_t txBufferSize = 50;
-const uint8_t rxBufferSize = 50;
-struct I2C_RX_DATA {
-  uint8_t cmdAddr = 0;                  // single byte command register
-  uint8_t cmdData[rxBufferSize] = {};   // room for N bytes of data
-  char padding[10] = {};                // padding not sure it's needed
-  size_t dataLen = 0;
-};
-
-struct I2C_TX_DATA {
-  uint8_t cmdData[txBufferSize] = {};   // room for N bytes of data
-  char padding[10] = {};                // padding not sure it's needed
-  size_t dataLen = 0;
-};
-
-volatile I2C_RX_DATA rxData;
-volatile I2C_TX_DATA txData;
 
 volatile bool unknownCmd       = false;                  // flag indicating unknown command received
 volatile bool txtmsgWaiting    = false;                  // flag indicating message from master is waiting
