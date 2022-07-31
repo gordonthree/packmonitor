@@ -4,9 +4,8 @@
 
 ### 0x20 Set time
 
-* Tranfer time from master to slave (how many bytes?)
-* Expects epoch time, seconds since Jan 1 1970 aka unix time
-
+* Expects unix timestamp sent as four bytes, will create uint32 timestamp after reception
+* Tranfer time from master to slave
 ### 0x21 Set high-current limit (unsigned word)
 
 * Set in milliamps, range 0 to 65535 
