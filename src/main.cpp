@@ -12,16 +12,18 @@
 #define SCL PC5 // A5
 #define SDA PC4 // A4
 
+const uint8_t txBufferSize = 50;
+const uint8_t rxBufferSize = 50;
 struct I2C_RX_DATA {
-  uint8_t cmdAddr = 0;        // single byte command register
-  uint8_t cmdData[50] = {};   // room for twenty bytes of data
-  char padding[10] = {};      // padding not sure it's needed
+  uint8_t cmdAddr = 0;                  // single byte command register
+  uint8_t cmdData[rxBufferSize] = {};   // room for N bytes of data
+  char padding[10] = {};                // padding not sure it's needed
   size_t dataLen = 0;
 };
 
 struct I2C_TX_DATA {
-  uint8_t cmdData[50] = {};   // room for twenty bytes of data
-  char padding[10] = {};      // padding not sure it's needed
+  uint8_t cmdData[txBufferSize] = {};   // room for N bytes of data
+  char padding[10] = {};                // padding not sure it's needed
   size_t dataLen = 0;
 };
 
@@ -34,10 +36,12 @@ volatile bool reqEvnt          = false;                  // flag set when the re
 volatile bool recvEvnt         = false;                  // flag set when the receiveEvent ISR fires
 volatile bool mastersetTime    = false;                  // flag that is set when master has sent time
 volatile bool txdataReady      = false;                  // flag that is set when data is ready to send to master
-
-volatile char txtMessage[50];                           // alternate buffer for message from master
+volatile bool purgeTXBuffer    = true;                   // tell loop() to clear the TX buffer
+volatile char txtMessage[50];                            // alternate buffer for message from master
 volatile uint8_t messageLen    = 0;                      // message from master length
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
+volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
+
 char buff[50];
 
 // function to eventually save data to on board FRAM
@@ -69,17 +73,26 @@ int16_t readFRAMint(uint8_t myAddr) {
 
 }
 
+void clearTXBuffer() {
+  uint16_t myPtr = 0;
+  while (myPtr < txBufferSize) {
+    txData.cmdData[myPtr] = '\0';
+    myPtr++;
+  }
+  purgeTXBuffer = false;
+}
 
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
 void requestEvent() {                             // master has requested data
   if (txdataReady) {
-    Wire.write((char *) txData.cmdData);   // dump our tx buffer to the buss
+    Wire.write((char *) txData.cmdData);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
   } else {
     Wire.write("hello ");                         // didn't have anything to send? respond with message of 6 bytes
   }
   reqEvnt = true;                                 // set flag that we had this interaction
+  purgeTXBuffer=true;                                // purge TX buffer
 }
 
 // function that executes whenever data is received from master
@@ -230,7 +243,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -238,7 +251,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -246,7 +259,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -254,7 +267,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -286,7 +299,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -302,7 +315,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -378,7 +391,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -386,7 +399,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -394,7 +407,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -402,7 +415,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -455,7 +468,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUint = readFRAMuint(rxData.cmdAddr);
         ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 3;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -463,7 +476,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -478,16 +491,17 @@ void receiveEvent(size_t howMany) {
     case 0x60: // set time from master, char string
       {
         _isr_timeStamp = atol(rxData.cmdData);
-        // Serial.printf("Ts from master: %lu\n", _isr_timeStamp);
-        setTime(_isr_timeStamp);                                            // fingers crossed
-        mastersetTime = true;                                          // set flag
+        setTime(_isr_timeStamp);                            // fingers crossed
+        mastersetTime = true;                               // set flag
+        lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
+        if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
       }
       break;
     case 0x61: // read first-init timestamp, ulong
       {
         _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
         ltoa(_isr_masterUlong, txData.cmdData, 10);         // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -495,7 +509,24 @@ void receiveEvent(size_t howMany) {
       {
         _isr_masterUlong = now();
         ltoa(_isr_masterUlong, txData.cmdData, 10);         // store data as char string in tx buffer
-        txData.dataLen = 5;                                 // number of bytes to transmit
+        txData.dataLen = 11;                                 // number of bytes to transmit
+        txdataReady = true;                                 // set flag we are ready to send data
+      }
+      break;
+    case 0x63: // read time since last sync
+      {
+        _isr_masterUlong = now();                           // read current time from time libvrary
+        _isr_timeStamp = _isr_masterUlong - lasttimeSync;   // subtract last sync timestamp from current timestamp
+        ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
+        txData.dataLen = 11;                                // number of bytes to transmit
+        txdataReady = true;                                 // set flag we are ready to send data
+      }
+    case 0x64: // read time since last sync
+      {
+        _isr_masterUlong = now();                           // read current time from time libvrary
+        _isr_timeStamp = _isr_masterUlong - firsttimeSync;  // subtract last sync timestamp from current timestamp
+        ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
+        txData.dataLen = 11;                                // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -540,6 +571,8 @@ void loop() {
   digitalWrite(LED2, reqEvnt);
   digitalWrite(LED3, recvEvnt);
   digitalWrite(LED4, mastersetTime);
+
+  if (purgeTXBuffer) clearTXBuffer(); 
 
   if (unknownCmd) {
     unknownCmd = false;
