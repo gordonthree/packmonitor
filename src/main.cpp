@@ -28,6 +28,18 @@ uint8_t ledX = 0;
 
 char buff[50];
 
+struct timeArray_t{
+  byte regAddr;
+  uint32 timeStamp;
+};
+
+const uint8_t timeUnion_size = sizeof(timeArray_t);
+
+union I2C_timePacket_t{
+  timeArray_t currentTime;
+  byte I2CPacket[timeUnion_size];
+};
+
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
 void requestEvent() { // master has requested data
@@ -43,11 +55,13 @@ void receiveEvent(size_t howMany) {
   Serial.printf("RX %u bytes: ", (uint8_t) rxData.dataLen);
   recvEvnt = true;                                // set event flag
   if (rxData.cmdAddr==0x20) {
+    Serial.println("Command 0x20: Set time");
+  } else if (rxData.cmdAddr==0x30) {
     digitalWrite(LED4, LOW);                      // turn off LED4
-    Serial.println("Command 0x20: LED 4 off");
-  } else if (rxData.cmdAddr==0x21) {
+    Serial.println("Command 0x30: LED 4 off");
+  } else if (rxData.cmdAddr==0x31) {
     digitalWrite(LED4, HIGH);                     // turn on LED4
-    Serial.println("Command 0x21: LED 4 on");
+    Serial.println("Command 0x31: LED 4 on");
   } else if (rxData.cmdAddr==0x32) {
     uint8_t i = rxData.dataLen;                   // length of string
     uint8_t x = 0;                                // pointer for printing string
