@@ -95,19 +95,19 @@
 
 ### 0x32 Clear total amps counter, except lifetime
 
-### 0x33 Read instant amperage
+### 0x33 Read instant amperage, signed int
 
-### 0x34 Read total amps in
+### 0x34 Read total amps in, unsigned long
 
-### 0x35 Read total amps out
+### 0x35 Read total amps out, unsigned long
 
-### 0x36 Read lifetime amps in
+### 0x36 Read lifetime amps in, unsigned long
 
-### 0x37 Read lifetime amps out
+### 0x37 Read lifetime amps out, unsigned long
 
-### 0x38 Clear voltage memory
+### 0x38 Clear voltage memory, no data
 
-### 0x39 Read instant voltage
+### 0x39 Read instant voltage, unsigned int
 
 ### 0x3A Read lowest voltage memory, unsigned int
 
@@ -117,21 +117,28 @@
 ### 0x3E Read highest voltage timestamp, unsigned long
 ### 0x3F (reserved)
 
-### 0x40 Clear temperature memories
+### 0x40 Clear temperature memories, no data
 
-### 0x41 Read T0 thermistor
+### 0x41 Read T0 thermistor, signed int
 
-### 0x42 Read T0 lowest
+### 0x42 Read T0 lowest, signed int
 
-### 0x43 Read T0 highest
+### 0x43 Read T0 highest, signed int
 
-### 0x44 Read T1 thermistor
+### 0x44 Read T1 thermistor, signed int
 
-### 0x45 Read T1 lowest
+### 0x45 Read T1 lowest, signed int
 
-### 0x46 Read T1 highest
+### 0x46 Read T1 highest, signed int
 
-### 0x47 through 0x4F (reserved)
+### 0x47 T0 lowest memory timestamp, unsigned long
+
+### 0x48 T1 lowest memory timestamp, unsigned long
+
+### 0x49 T0 highest memory timestamp, unsigned long
+
+### 0x4A T1 highest memory timestamp, unsigned long
+### 0x4B through 0x4F (reserved)
 
 ### 0x50 Clear disconnect history
 
