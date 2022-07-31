@@ -19,14 +19,11 @@ struct I2C_RX_DATA {
   size_t dataLen = 0;
 };
 
-I2C_RX_DATA rxData;
+volatile I2C_RX_DATA rxData;
 
-uint16_t i=0;
-bool reqEvnt          = false;
-bool recvEvnt         = false;
-bool mastersetTime    = false;
-bool timeisSet        = false;
-uint8_t ledX          = 0;
+volatile bool reqEvnt          = false;
+volatile bool recvEvnt         = false;
+volatile bool mastersetTime    = false;
 
 char buff[50];
 
@@ -171,6 +168,9 @@ void setup() {
   Wire.onReceive(receiveEvent); // register receiveEvent event handler
 }
 
+uint16_t i=0;
+uint8_t ledX=0;
+
 // the loop function runs over and over again forever
 void loop() {
   i++;
@@ -181,8 +181,10 @@ void loop() {
     i=0;
     ledX = ledX ^ 1; // xor previous state
     digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
-    Serial.print("Timestamp ");
-    Serial.println(now());
+    if (timeSet())) {
+      Serial.print("Timestamp ");
+      Serial.println(now());
+    } 
   }
 
   delay(1);
