@@ -21,6 +21,8 @@ struct I2C_RX_DATA {
 
 volatile I2C_RX_DATA rxData;
 
+volatile bool unknownCmd       = false;
+volatile bool txtmsgWaiting    = false;
 volatile bool reqEvnt          = false;
 volatile bool recvEvnt         = false;
 volatile bool mastersetTime    = false;
@@ -52,8 +54,13 @@ void requestEvent() { // master has requested data
 // function that executes whenever data is received from master
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
-  uint8_t i = 0;                   // length of string
-  uint8_t x = 0;                                // pointer for printing string
+  uint8_t   _isr_i           = 0;                   // length of string
+  uint8_t   _isr_x           = 0;                                // pointer for printing string
+  uint16_t  _isr_masterUint  = 0;
+  int16_t   _isr_masterInt   = 0;
+  uint8_t   _isr_masterByte  = 0;
+  uint32_t  _isr_timeStamp   = 0;
+
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
   Serial.printf("RX %u bytes\n", (uint8_t) rxData.dataLen);
@@ -61,23 +68,23 @@ void receiveEvent(size_t howMany) {
   
   switch  (rxData.cmdAddr) {
     case 0x21: // high current limit, unsigned int
-      uint16_t masterData = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, masterData);
+      _isr_masterUint = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, _isr_masterUint);
     case 0x22: // high-temp limit, unsigned int
-      uint16_t masterData = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, masterData);
+      _isr_masterUint = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, _isr_masterUint);
     case 0x23: // low-temp limit, signed int
-      int masterData = atoi(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, masterData);
+      int _isr_masterInt = atoi(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, _isr_masterInt);
     case 0x24: // high-voltage limit, unsigned int
-      uint16_t masterData = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, masterData);
+      _isr_masterUint = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, _isr_masterUint);
     case 0x25: // low-voltage limit, unsigned int
-      uint16_t masterData = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, masterData);
+      _isr_masterUint = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, _isr_masterUint);
     case 0x26: // set config0, byte
-      masterData = rxData.cmdData[0];
-      updateFRAM(rxData.cmdAddr, masterData);
+      _isr_masterByte = rxData.cmdData[0];
+      updateFRAM(rxData.cmdAddr, _isr_masterByte);
     case 0x27: // set config1, byte
     case 0x28: // set config2, byte
     case 0x29: // read config0, byte
@@ -88,18 +95,10 @@ void receiveEvent(size_t howMany) {
     case 0x2D: // read status2, byte
     case 0x30: // clear coulomb counter, no data
       digitalWrite(LED4, LOW);                                       // turn off LED4
-      //Serial.println("Command 0x30: LED 4 off");
     case 0x31: // read coulomb counter, signed long
       digitalWrite(LED4, HIGH);                     // turn on LED4
-      //Serial.println("Command 0x31: LED 4 on");
     case 0x32: // clear total amps counter, no data
-      Serial.print("Command 0x32: Received ");
-      i = rxData.dataLen;                   // length of string
-      while (x<i) {                                 // print string one char at a time
-        Serial.print((char) rxData.cmdData[x]);
-        x++;
-      }
-      Serial.println();                             // send a newline  
+      txtmsgWaiting = true; // set flag to print the message in loop()
     case 0x33: // read instant amps, signed int
     case 0x34: // read total amps in counter, unsigned long
     case 0x35: // read total amps out counter, unsigned long
@@ -134,15 +133,14 @@ void receiveEvent(size_t howMany) {
     case 0x57: // read last discon reason code, byte
 
     case 0x60: // set time from master, char string
-      unsigned long timeStamp = atol(rxData.cmdData);
-      //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
-      setTime(timeStamp);                                            // fingers crossed
+      _isr_timeStamp = atol(rxData.cmdData);
+      setTime(_isr_timeStamp);                                            // fingers crossed
       mastersetTime = true;                                          // set flag
     case 0x61: // read first-init timestamp, ulong
     case 0x62: // read current timestamp, ulong
 
     default:// unknown register
-      Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
+      unknownCmd = true;
   } // end switch
 }
 
@@ -169,6 +167,7 @@ void setup() {
 }
 
 uint16_t i=0;
+uint16_t x=0;
 uint8_t ledX=0;
 
 // the loop function runs over and over again forever
@@ -177,11 +176,27 @@ void loop() {
   digitalWrite(LED2, reqEvnt);
   digitalWrite(LED3, recvEvnt);
 
+  if (unknownCmd) {
+    unknownCmd = false;
+    Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
+  }
+  
+  if (txtmsgWaiting) {            // print message sent by master
+    txtmsgWaiting = false;        // clear flag
+    Serial.print("Command 0x32: Received ");
+    i = rxData.dataLen;                   // length of string
+    while (x<i) {                                 // print string one char at a time
+      Serial.print((char) rxData.cmdData[x]);
+      x++;
+    }
+    Serial.println();                             // send a newline  
+  }
+
   if (i>1000){
     i=0;
-    ledX = ledX ^ 1; // xor previous state
-    digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
-    if (timeSet())) {
+    ledX = ledX ^ 1;              // xor previous state
+    digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
+    if (timeStatus()==timeSet) {             // print timestamps once time is set
       Serial.print("Timestamp ");
       Serial.println(now());
     } 
