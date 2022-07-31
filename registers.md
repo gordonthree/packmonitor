@@ -61,7 +61,21 @@
 ### 0x27 Set config1 bits (byte)
 
 * Bit 0 to 7: (reserved)
-### 0x28 Read status bits (0 no 1 yes/ok)
+
+### 0x28 Set config2 bits (byte)
+
+* Bit 0 to 7: (reserved)
+
+### 0x29 Read config0 (byte)
+
+* See set config0 for details
+### 0x2A Read config1 (byte)
+
+* See set config1 for details
+### 0x2B Read config2 (byte)
+
+* See set config2 for details
+### 0x2C Read status0 bites
 
 * Bit 7: Config set
 * Bit 6: Time set
@@ -72,8 +86,9 @@
 * Bit 1: I-sense out of range
 * Bit 0: V-sense out of range
 
-### 0x29 through 0x2F (reserved)
+### 0x2D Read status1 bites
 
+### 0x2E through 0x2F (reserved)
 ### 0x30 Clear coulomb counter
 
 ### 0x31 Read coulomb counter
