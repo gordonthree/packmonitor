@@ -42,6 +42,9 @@ union I2C_timePacket_t{
   byte I2CPacket[timeUnion_size];
 };
 
+void updateFRAM(uint8_t myAddr, int32_t myData) { // function to eventually save data to on board FRAM
+
+}
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
 void requestEvent() { // master has requested data
@@ -59,23 +62,31 @@ void receiveEvent(size_t howMany) {
   Serial.printf("RX %u bytes\n", (uint8_t) rxData.dataLen);
   recvEvnt = true;                                                 // set event flag
   switch  (rxData.cmdAddr) {
-    case 0x20: // set time from master
+    case 0x20: // set time from master, char string
       unsigned long timeStamp = atol(rxData.cmdData);
       //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
       setTime(timeStamp);                                            // fingers crossed
       mastersetTime = true;                                          // set flag
-    case 0x21:
-      uint16_t timeStamp = atol(rxData.cmdData);
-      //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
-      setTime(timeStamp);                                            // fingers crossed
-      mastersetTime = true;                                          // set flag
-    case 0x22:
-    case 0x23:
-    case 0x24:
-    case 0x25:
-    case 0x26:
-    case 0x27:
-    case 0x28:
+    case 0x21: // high current limit, unsigned int
+      uint16_t masterData = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x22: // high-temp limit, unsigned int
+      uint16_t masterData = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x23: // low-temp limit, signed int
+      int masterData = atoi(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x24: // high-voltage limit, unsigned int
+      uint16_t masterData = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x25: // low-voltage limit, unsigned int
+      uint16_t masterData = atol(rxData.cmdData);
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x26: // set config0, byte
+      masterData = rxData.cmdData[0];
+      updateFRAM(rxData.cmdAddr, masterData);
+    case 0x27: // read config0, byte
+    case 0x28: // read status0, byte
     case 0x29:
     case 0x2A:
     case 0x2B:
