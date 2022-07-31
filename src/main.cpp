@@ -61,12 +61,8 @@ void receiveEvent(size_t howMany) {
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
   Serial.printf("RX %u bytes\n", (uint8_t) rxData.dataLen);
   recvEvnt = true;                                                 // set event flag
+  
   switch  (rxData.cmdAddr) {
-    case 0x20: // set time from master, char string
-      unsigned long timeStamp = atol(rxData.cmdData);
-      //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
-      setTime(timeStamp);                                            // fingers crossed
-      mastersetTime = true;                                          // set flag
     case 0x21: // high current limit, unsigned int
       uint16_t masterData = atol(rxData.cmdData);
       updateFRAM(rxData.cmdAddr, masterData);
@@ -85,15 +81,16 @@ void receiveEvent(size_t howMany) {
     case 0x26: // set config0, byte
       masterData = rxData.cmdData[0];
       updateFRAM(rxData.cmdAddr, masterData);
-    case 0x27: // read config0, byte
-    case 0x28: // read status0, byte
-    case 0x29:
-    case 0x2A:
-    case 0x2B:
-    case 0x2C:
-    case 0x2D:
-    case 0x2E:
-    case 0x2F:
+    case 0x27: // set config1, byte
+    case 0x28: // (reserved))
+    case 0x29: // read config0, byte
+    case 0x2A: // read config1, byte
+    case 0x2B: // (reserved)
+    case 0x2B: // read status0, byte
+    case 0x2C: // read status1, byte
+    case 0x2D: // read status2, byte
+    case 0x2E: // (reserved)
+    case 0x2F: // (reserved)
     case 0x30:
       digitalWrite(LED4, LOW);                                       // turn off LED4
       //Serial.println("Command 0x30: LED 4 off");
@@ -153,7 +150,11 @@ void receiveEvent(size_t howMany) {
     case 0x5D:
     case 0x5E:
     case 0x5F:
-    case 0x60:
+    case 0x60: // set time from master, char string
+      unsigned long timeStamp = atol(rxData.cmdData);
+      //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
+      setTime(timeStamp);                                            // fingers crossed
+      mastersetTime = true;                                          // set flag
     case 0x61:
     case 0x62:
     case 0x63:
