@@ -91,8 +91,10 @@
 ### 0x2E through 0x2F (reserved)
 ### 0x30 Clear coulomb counter, no data
 
+* Reset coulomb counter
 ### 0x31 Read coulomb counter. signed int
 
+* Shows surplus amps in, or deficit amps out
 ### 0x32 Clear total amps counter, except lifetime
 
 ### 0x33 Read instant amperage, signed int
