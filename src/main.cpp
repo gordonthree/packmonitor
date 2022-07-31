@@ -114,60 +114,35 @@ void receiveEvent(size_t howMany) {
     case 0x3B: // read lowest voltage timestamp, unsigned long
     case 0x3C: // read highest voltage memory, unsigned int
     case 0x3D: // read highest voltage timestamp, unsigned long
-    case 0x3E:
-    case 0x3F:
-    case 0x40:
-    case 0x41:
-    case 0x42:
-    case 0x43:
-    case 0x44:
-    case 0x45:
-    case 0x46:
-    case 0x47:
-    case 0x48:
-    case 0x49:
-    case 0x4A:
-    case 0x4B:
-    case 0x4C:
-    case 0x4D:
-    case 0x4E:
-    case 0x4F:
-    case 0x50:
-    case 0x51:
-    case 0x52:
-    case 0x53:
-    case 0x54:
-    case 0x55:
-    case 0x56:
-    case 0x57:
-    case 0x58:
-    case 0x59:
-    case 0x5A:
-    case 0x5B:
-    case 0x5C:
-    case 0x5D:
-    case 0x5E:
-    case 0x5F:
+
+    case 0x40: // clear temperature memories, no data
+    case 0x41: // read t0 instant, signed int
+    case 0x42: // read t0 lowest, signed int
+    case 0x43: // read t0 highest, signed int
+    case 0x44: // read t1 instant, signed int
+    case 0x45: // read t1 lowest, signed int
+    case 0x46: // read t1 highest, signed int
+    case 0x47: // read t0 lowest timestamp, unsigned long
+    case 0x48: // read t0 highest timestamp, unsigned long
+    case 0x49: // read t1 lowest timestamp, unsigned long
+    case 0x4A: // read t1 highest timestamp, unsigned long
+    
+    case 0x50: // clear disconnect history, no data
+    case 0x51: // read total over-current disconnects, unsigned int
+    case 0x52: // read total under-voltage discon, unsigned int
+    case 0x53: // read total over-volt discon, uint
+    case 0x54: // read total under-temp discon, uint
+    case 0x55: // read total over-temp discon, uint
+    case 0x56: // read last discon timestamp, ulong
+    case 0x57: // read last discon reason code, byte
+
     case 0x60: // set time from master, char string
       unsigned long timeStamp = atol(rxData.cmdData);
       //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
       setTime(timeStamp);                                            // fingers crossed
       mastersetTime = true;                                          // set flag
-    case 0x61:
-    case 0x62:
-    case 0x63:
-    case 0x64:
-    case 0x65:
-    case 0x66:
-    case 0x67:
-    case 0x68:
-    case 0x69:
-    case 0x6A:
-    case 0x6B:
-    case 0x6C:
-    case 0x6D:
-    case 0x6E:
-    case 0x6F:
+    case 0x61: // read first-init timestamp, ulong
+    case 0x62: // read current timestamp, ulong
 
     default:// unknown register
       Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
