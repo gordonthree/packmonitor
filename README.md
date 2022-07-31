@@ -138,6 +138,9 @@
 
 [https://github.com/MCUdude/MegaCoreX](https://github.com/MCUdude/MegaCoreX)
 
+#### AVR DA / DB / DD Series:
+
+[https://github.com/SpenceKonde/DxCore](https://github.com/SpenceKonde/DxCore)
 #### Bootloader:
 
 [https://github.com/Optiboot/optiboot](https://github.com/Optiboot/optiboot)
