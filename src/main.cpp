@@ -26,6 +26,8 @@ volatile bool txtmsgWaiting    = false;
 volatile bool reqEvnt          = false;
 volatile bool recvEvnt         = false;
 volatile bool mastersetTime    = false;
+volatile char txtMessage[100];
+volatile uint8_t messageLen    = 0;
 
 char buff[50];
 
@@ -63,42 +65,71 @@ void receiveEvent(size_t howMany) {
 
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
-  Serial.printf("RX %u bytes\n", (uint8_t) rxData.dataLen);
+  Serial.printf("RX cmd 0x%X and %u bytes\n", rxData.cmdAddr, rxData.dataLen);
   recvEvnt = true;                                                 // set event flag
+  uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
-  switch  (rxData.cmdAddr) {
+  switch  (_isr_cmdAddr) {
     case 0x21: // high current limit, unsigned int
-      _isr_masterUint = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      {
+        _isr_masterUint = atol(rxData.cmdData);
+        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      }
+      break;
     case 0x22: // high-temp limit, unsigned int
-      _isr_masterUint = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      {
+        _isr_masterUint = atol(rxData.cmdData);
+         updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      }
+      break;
     case 0x23: // low-temp limit, signed int
-      int _isr_masterInt = atoi(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, _isr_masterInt);
+      {
+        int _isr_masterInt = atoi(rxData.cmdData);
+        updateFRAM(rxData.cmdAddr, _isr_masterInt);
+      }
+      break;
     case 0x24: // high-voltage limit, unsigned int
-      _isr_masterUint = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      {
+        _isr_masterUint = atol(rxData.cmdData);
+        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      }
+      break;
     case 0x25: // low-voltage limit, unsigned int
-      _isr_masterUint = atol(rxData.cmdData);
-      updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      {
+        _isr_masterUint = atol(rxData.cmdData);
+        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+      }
+      break;
     case 0x26: // set config0, byte
-      _isr_masterByte = rxData.cmdData[0];
-      updateFRAM(rxData.cmdAddr, _isr_masterByte);
+      {
+        _isr_masterByte = rxData.cmdData[0];
+        updateFRAM(rxData.cmdAddr, _isr_masterByte);
+      }
+      break;
     case 0x27: // set config1, byte
     case 0x28: // set config2, byte
     case 0x29: // read config0, byte
     case 0x2A: // read config1, byte
     case 0x2B: // read config2, byte
-    case 0x2B: // read status0, byte
     case 0x2C: // read status1, byte
     case 0x2D: // read status2, byte
     case 0x30: // clear coulomb counter, no data
-      digitalWrite(LED4, LOW);                                       // turn off LED4
+      {
+        digitalWrite(LED4, LOW);                                       // turn off LED4
+      }
+      break;
     case 0x31: // read coulomb counter, signed long
-      digitalWrite(LED4, HIGH);                     // turn on LED4
+      {
+        digitalWrite(LED4, HIGH);                     // turn on LED4
+      }
+      break;
     case 0x32: // clear total amps counter, no data
-      txtmsgWaiting = true; // set flag to print the message in loop()
+      {
+        strcpy(txtMessage, rxData.cmdData); // copy message into another buffer
+        messageLen = rxData.dataLen; // copy message length too
+        txtmsgWaiting = true; // set flag to print the message in loop()
+      }
+      break;
     case 0x33: // read instant amps, signed int
     case 0x34: // read total amps in counter, unsigned long
     case 0x35: // read total amps out counter, unsigned long
@@ -133,14 +164,21 @@ void receiveEvent(size_t howMany) {
     case 0x57: // read last discon reason code, byte
 
     case 0x60: // set time from master, char string
-      _isr_timeStamp = atol(rxData.cmdData);
-      setTime(_isr_timeStamp);                                            // fingers crossed
-      mastersetTime = true;                                          // set flag
+      {
+        _isr_timeStamp = atol(rxData.cmdData);
+        // Serial.printf("Ts from master: %lu\n", _isr_timeStamp);
+        setTime(_isr_timeStamp);                                            // fingers crossed
+        mastersetTime = true;                                          // set flag
+      }
+      break;
     case 0x61: // read first-init timestamp, ulong
     case 0x62: // read current timestamp, ulong
 
     default:// unknown register
-      unknownCmd = true;
+      {
+        unknownCmd = true;
+      }
+      break;
   } // end switch
 }
 
@@ -180,16 +218,11 @@ void loop() {
     unknownCmd = false;
     Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
   }
-  
+
   if (txtmsgWaiting) {            // print message sent by master
     txtmsgWaiting = false;        // clear flag
-    Serial.print("Command 0x32: Received ");
-    i = rxData.dataLen;                   // length of string
-    while (x<i) {                                 // print string one char at a time
-      Serial.print((char) rxData.cmdData[x]);
-      x++;
-    }
-    Serial.println();                             // send a newline  
+    Serial.printf("Message from master: %s", txtMessage);
+    Serial.println();
   }
 
   if (i>1000){
@@ -197,8 +230,7 @@ void loop() {
     ledX = ledX ^ 1;              // xor previous state
     digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
     if (timeStatus()==timeSet) {             // print timestamps once time is set
-      Serial.print("Timestamp ");
-      Serial.println(now());
+      Serial.printf("Timestamp: %ul\n", now());
     } 
   }
 
