@@ -18,10 +18,13 @@ struct I2C_TX_DATA {
 struct ADC_DATA {
   uint8_t adcPin   = 0;                 // Arduino pin number?
   int32_t adcRaw   = 0;                 // raw value
+  int32_t adcMin   = 0;                 // raw value
+  int32_t adcMax   = 0;                 // raw value
   float   adcFloat = 0.0;               // formatted value
+  float   minFloat = 0.0;               // formatted value
+  float   maxFloat = 0.0;               // formatted value
 }
 
 volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
 volatile adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
-          
