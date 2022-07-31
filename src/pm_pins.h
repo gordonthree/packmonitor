@@ -9,6 +9,10 @@
 //SDA 18 (A4) SCL 19 (A5)
 #define SCL PC5 // A5
 #define SDA PC4 // A4
+
+#define ADC0 A0
+#define ADC1 A2
+#define ADC2 A2
 #elif MCU_NANOEVERY
 #define LED1 PF2
 #define LED2 PF3
