@@ -86,7 +86,7 @@
 * Bit 1: I-sense out of range
 * Bit 0: V-sense out of range
 
-### 0x2D Read status1 bites
+### 0x2D Read status1 bits
 
 ### 0x2E through 0x2F (reserved)
 ### 0x30 Clear coulomb counter
@@ -109,11 +109,13 @@
 
 ### 0x39 Read instant voltage
 
-### 0x3A Read lowest voltage memory
+### 0x3A Read lowest voltage memory, unsigned int
 
-### 0x3B Read highest voltage memory
+### 0x3B Read lowest voltage timestamp, unsigned long
+### 0x3D Read highest voltage memory, unsigned int
 
-### 0x3C through 0x3F (reserved)
+### 0x3E Read highest voltage timestamp, unsigned long
+### 0x3F (reserved)
 
 ### 0x40 Clear temperature memories
 
