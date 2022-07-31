@@ -65,7 +65,7 @@ void receiveEvent(size_t howMany) {
 
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
-  Serial.printf("RX cmd 0x%X and %u bytes\n", rxData.cmdAddr, rxData.dataLen);
+  // Serial.printf("RX cmd 0x%X and %u bytes\n", rxData.cmdAddr, rxData.dataLen);
   recvEvnt = true;                                                 // set event flag
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
@@ -125,8 +125,8 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x32: // clear total amps counter, no data
       {
-        strcpy(txtMessage, rxData.cmdData); // copy message into another buffer
-        messageLen = rxData.dataLen; // copy message length too
+        strncpy(txtMessage, rxData.cmdData, rxData.dataLen); // copy message into another buffer
+        // messageLen = rxData.dataLen; // copy message length too
         txtmsgWaiting = true; // set flag to print the message in loop()
       }
       break;
@@ -230,7 +230,7 @@ void loop() {
     ledX = ledX ^ 1;              // xor previous state
     digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
     if (timeStatus()==timeSet) {             // print timestamps once time is set
-      Serial.printf("Timestamp: %ul\n", now());
+      Serial.printf("Timestamp: %lu\n", now());
     } 
   }
 
