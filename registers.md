@@ -5,6 +5,7 @@
 ### 0x20 Set time
 
 * Tranfer time from master to slave (how many bytes?)
+* Expects epoch time, seconds since Jan 1 1970 aka unix time
 
 ### 0x21 Set high-current limit (unsigned word)
 
