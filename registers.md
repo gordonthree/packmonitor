@@ -89,9 +89,9 @@
 ### 0x2D Read status1 bits
 
 ### 0x2E through 0x2F (reserved)
-### 0x30 Clear coulomb counter
+### 0x30 Clear coulomb counter, no data
 
-### 0x31 Read coulomb counter
+### 0x31 Read coulomb counter. signed int
 
 ### 0x32 Clear total amps counter, except lifetime
 
