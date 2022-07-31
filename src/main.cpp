@@ -74,7 +74,7 @@ int16_t readFRAMint(uint8_t myAddr) {
 // this function is registered as an event, see setup()
 void requestEvent() {                             // master has requested data
   if (txdataReady) {
-    Wire.write(txData.cmdData, txData.dataLen);   // dump our tx buffer to the buss
+    Wire.write((char *) txData.cmdData, txData.dataLen);   // dump our tx buffer to the buss
     txdataReady = false;                          // clear tx flag
   } else {
     Wire.write("hello ");                         // didn't have anything to send? respond with message of 6 bytes
@@ -104,49 +104,49 @@ void receiveEvent(size_t howMany) {
     case 0x21: // high current limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
-        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
       }
       break;
     case 0x22: // high-temp limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
-         updateFRAM(rxData.cmdAddr, _isr_masterUint);
+         writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
       }
       break;
     case 0x23: // low-temp limit, signed int
       {
         _isr_masterInt = atoi(rxData.cmdData);
-        updateFRAM(rxData.cmdAddr, _isr_masterInt);
+        writeFRAMint(rxData.cmdAddr, _isr_masterInt);
       }
       break;
     case 0x24: // high-voltage limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
-        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
       }
       break;
     case 0x25: // low-voltage limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
-        updateFRAM(rxData.cmdAddr, _isr_masterUint);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
       }
       break;
     case 0x26: // set config0, byte
       {
         _isr_masterByte = rxData.cmdData[0];
-        updateFRAM(rxData.cmdAddr, _isr_masterByte);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
       }
       break;
     case 0x27: // set config1, byte
       {
         _isr_masterByte = rxData.cmdData[0];
-        updateFRAM(rxData.cmdAddr, _isr_masterByte);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
       }
       break;
     case 0x28: // set config2, byte
       {
         _isr_masterByte = rxData.cmdData[0];
-        updateFRAM(rxData.cmdAddr, _isr_masterByte);
+        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
       }
       break;
     case 0x29: // read config0, byte
