@@ -97,7 +97,7 @@
 * Shows surplus amps in, or deficit amps out
 ### 0x32 Clear total amps counter, except lifetime
 
-### 0x33 Read instant amperage, signed int
+### 0x33 Read pack amperage, signed int
 
 ### 0x34 Read total amps in, unsigned long
 
@@ -109,16 +109,30 @@
 
 ### 0x38 Clear voltage memory, no data
 
-### 0x39 Read instant voltage, unsigned int
+### 0x39 Read pack voltage, unsigned int
+
+* Returns the current pack voltage in millivolts
 
 ### 0x3A Read lowest voltage memory, unsigned int
 
+* Lowest voltage seen since last clear in millivolts
+
 ### 0x3B Read lowest voltage timestamp, unsigned long
 
+* Timestamp for when the lowest voltage was recorded
+
 ### 0x3C Read highest voltage memory, unsigned int
+
+* Highest voltage seen since last clear in millivolts
+
 ### 0x3D Read highest voltage timestamp, unsigned long
 
-### 0x3E (reserved)
+* Timestamp for when the highest voltage was recorded
+
+### 0x3E Read bus voltage, unsigned int
+
+* Returns the current bus voltage in millivolts
+
 ### 0x3F (reserved)
 
 ### 0x40 Clear temperature memories, no data
@@ -170,4 +184,8 @@
 
 ### 0x62 Read current timestamp ulong
 
-### 0x63 through 0xFF (reserved)
+### 0x63 Read time since last sync ulong
+
+### 0x64 Read uptime ulong
+
+### 0x65 through 0xFF (reserved)

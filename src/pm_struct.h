@@ -23,8 +23,8 @@ struct ADC_DATA {
   float   adcFloat = 0.0;               // formatted value
   float   minFloat = 0.0;               // formatted value
   float   maxFloat = 0.0;               // formatted value
-}
+};
 
 volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
-volatile adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
+volatile ADC_DATA adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
