@@ -74,7 +74,7 @@ int16_t readFRAMint(uint8_t myAddr) {
 // this function is registered as an event, see setup()
 void requestEvent() {                             // master has requested data
   if (txdataReady) {
-    Wire.write((char *) txData.cmdData, txData.dataLen);   // dump our tx buffer to the buss
+    Wire.write((char *) txData.cmdData);   // dump our tx buffer to the buss
     txdataReady = false;                          // clear tx flag
   } else {
     Wire.write("hello ");                         // didn't have anything to send? respond with message of 6 bytes
