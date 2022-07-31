@@ -112,9 +112,11 @@
 ### 0x3A Read lowest voltage memory, unsigned int
 
 ### 0x3B Read lowest voltage timestamp, unsigned long
+
+### 0x3C Read highest voltage memory, unsigned int
 ### 0x3D Read highest voltage memory, unsigned int
 
-### 0x3E Read highest voltage timestamp, unsigned long
+### 0x3E (reserved)
 ### 0x3F (reserved)
 
 ### 0x40 Clear temperature memories, no data
