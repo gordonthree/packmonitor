@@ -22,15 +22,17 @@ struct I2C_RX_DATA {
 I2C_RX_DATA rxData;
 
 uint16_t i=0;
-bool reqEvnt = false;
-bool recvEvnt = false;
-uint8_t ledX = 0;
+bool reqEvnt          = false;
+bool recvEvnt         = false;
+bool mastersetTime    = false;
+bool timeisSet        = false;
+uint8_t ledX          = 0;
 
 char buff[50];
 
 struct timeArray_t{
   byte regAddr;
-  uint32 timeStamp;
+  uint32_t timeStamp;
 };
 
 const uint8_t timeUnion_size = sizeof(timeArray_t);
@@ -50,22 +52,26 @@ void requestEvent() { // master has requested data
 // function that executes whenever data is received from master
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
-  Wire.readBytes( (uint8_t *) &rxData, howMany);  // transfer everything from buffer into memory
-  rxData.dataLen = howMany - 1;                   // save the data length for future use
+  uint8_t i = 0;                   // length of string
+  uint8_t x = 0;                                // pointer for printing string
+  Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
+  rxData.dataLen = howMany - 1;                                    // save the data length for future use
   Serial.printf("RX %u bytes: ", (uint8_t) rxData.dataLen);
-  recvEvnt = true;                                // set event flag
+  recvEvnt = true;                                                 // set event flag
   if (rxData.cmdAddr==0x20) {
-    Serial.println("Command 0x20: Set time");
+    unsigned long timeStamp = atol(rxData.cmdData);
+    Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
+    setTime(timeStamp);                                            // fingers crossed
+    mastersetTime = true;                                          // set flag
   } else if (rxData.cmdAddr==0x30) {
-    digitalWrite(LED4, LOW);                      // turn off LED4
+    digitalWrite(LED4, LOW);                                       // turn off LED4
     Serial.println("Command 0x30: LED 4 off");
   } else if (rxData.cmdAddr==0x31) {
     digitalWrite(LED4, HIGH);                     // turn on LED4
     Serial.println("Command 0x31: LED 4 on");
   } else if (rxData.cmdAddr==0x32) {
-    uint8_t i = rxData.dataLen;                   // length of string
-    uint8_t x = 0;                                // pointer for printing string
-    Serial.print("Command 0x32: Message is ");
+    Serial.print("Command 0x32: Received ");
+    i = rxData.dataLen;                   // length of string
     while (x<i) {                                 // print string one char at a time
       Serial.print((char) rxData.cmdData[x]);
       x++;
