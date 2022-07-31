@@ -56,19 +56,19 @@ void receiveEvent(size_t howMany) {
   uint8_t x = 0;                                // pointer for printing string
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
-  Serial.printf("RX %u bytes: ", (uint8_t) rxData.dataLen);
+  Serial.printf("RX %u bytes\n", (uint8_t) rxData.dataLen);
   recvEvnt = true;                                                 // set event flag
   if (rxData.cmdAddr==0x20) {
     unsigned long timeStamp = atol(rxData.cmdData);
-    Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
+    //Serial.printf("Command 0x20: Received timestamp %lu\n", timeStamp);
     setTime(timeStamp);                                            // fingers crossed
     mastersetTime = true;                                          // set flag
   } else if (rxData.cmdAddr==0x30) {
     digitalWrite(LED4, LOW);                                       // turn off LED4
-    Serial.println("Command 0x30: LED 4 off");
+    //Serial.println("Command 0x30: LED 4 off");
   } else if (rxData.cmdAddr==0x31) {
     digitalWrite(LED4, HIGH);                     // turn on LED4
-    Serial.println("Command 0x31: LED 4 on");
+    //Serial.println("Command 0x31: LED 4 on");
   } else if (rxData.cmdAddr==0x32) {
     Serial.print("Command 0x32: Received ");
     i = rxData.dataLen;                   // length of string
@@ -110,19 +110,12 @@ void loop() {
   digitalWrite(LED2, reqEvnt);
   digitalWrite(LED3, recvEvnt);
 
-  if (i>500){
-    if (reqEvnt) {
-      //Serial.println(" TX ");
-      reqEvnt = false;
-    }
-    if (recvEvnt) {
-      //Serial.println(" RX ");
-      recvEvnt = false;
-    }
+  if (i>1000){
     i=0;
     ledX = ledX ^ 1; // xor previous state
     digitalWrite(LED1, ledX);   // turn the LED on (HIGH is the voltage level)
-    
+    Serial.print("Timestamp ");
+    Serial.println(now());
   }
 
   delay(1);
