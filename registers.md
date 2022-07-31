@@ -154,7 +154,7 @@
 
 ### 0x55 Read total over-temp disconnects (usigned int)
 
-### 0x56 Read last disconnect timestamp (char *)
+### 0x56 Read last disconnect timestamp (ulong)
 
 ### 0x57 Read last disconnect reason code (byte)
 
@@ -164,6 +164,8 @@
 
 * Tranfer time from master to slave
 * Expects unix timestamp sent as char string
-### 0x61 Read first-initialized timestamp (char *)
+### 0x61 Read first-initialized timestamp ulong
 
-### 0x62 Read current timestamp (char *)
+### 0x62 Read current timestamp ulong
+
+### 0x63 through 0xFF (reserved)
