@@ -2,10 +2,10 @@
 
 ## These registers are identified by a single command byte and one or more data bytes
 
-### 0x20 Set time
+### 0x20 Set time (char *)
 
-* Expects unix timestamp sent as four bytes, will create uint32 timestamp after reception
 * Tranfer time from master to slave
+* Expects unix timestamp sent as char string
 ### 0x21 Set high-current limit (unsigned word)
 
 * Set in milliamps, range 0 to 65535 
@@ -13,23 +13,27 @@
 
 ### 0x22 Set high-temp limit (unsigned word)
 
-* Set in milli-degrees C, range 0 to 65535 or 65.535c
+* Set in millidegrees C, range 0 to 65535 or 65.535c
 * Default 45000 or 45c
+* Send data as char string
 
 ### 0x23 Set low-temp limit (signed word)
 
-* Set in milli-degrees C, range -32768 to 32767 or -32.768c to 32.767c
+* Set in millidegrees C, range -32768 to 32767 or -32.768c to 32.767c
 * Default 0c
+* Send data as char string
 
 ### 0x24 Set pack high-voltage limit in millivolts (unsigned word)
 
 * valid range 9600 to 26000, values outside this range will be ignored
 * default 14800
+* Send data as char string
 
 ### 0x25 Set pack low-voltage limit in millivolts (unsigned word)
 
 * valid range 600 to 26000, values outside this range will be ignored
 * default 10800 or 10.8 volts
+* Send data as char string
 
 ### 0x26 Set config bits (byte) (0 disabled, 1 enabled)
 
