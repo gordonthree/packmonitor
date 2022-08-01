@@ -29,12 +29,12 @@
 ## Connectors:
 
 1. Battery side
-   * Battery Pos In and Out (14 ga)
-   * Battery Ground (14 ga)
-   * 6-pin jst for three thermistors
+   * Battery In and Out (14 ga) - WAGO screw cage
+   * 6-pin jst-xh vertical for three thermistors
 1. Upstream interface: I2C
-   * 4 to 6-pin connector of some sort; +5v, SCL, SDA, GND
-   * TCA4311 on battery side, I2C mux on host side
+   * JST-xh 6-pin connector +5v, GND, SCL, GND, SDA, GND
+   * TCA4311 on battery side
+   * I2C switch on host side (might not need)
 
 ## Indicators:
 
