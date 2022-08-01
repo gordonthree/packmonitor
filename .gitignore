@@ -82,3 +82,4 @@ dkms.conf
 .vscode/launch.json
 .vscode/c_cpp_properties.json
 eagle/*.?#?
+eagle/packmonitor/*.?#?
