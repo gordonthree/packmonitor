@@ -57,17 +57,20 @@ int16_t readFRAMint(uint8_t myAddr) {
 
 }
 
-int readADC(uint8_t adcPin, uint8_t noSamples) {
+long readADC(uint8_t adcPin, uint8_t noSamples) {
   uint32_t adcResult = 0;
-  uint8_t adcX = 0;
-  while (adcX<noSamples) {
-    adcResult =+ analogRead(adcPin);                    // measure sample
-    adcX++;                                             // increment sample counter
+  int sample         = 0;
+  uint8_t  adcX      = 0;
+
+  for (int x=0; x < noSamples; x++) {
+    sample = analogRead(adcPin);                    // sample adc pin
+    adcResult = adcResult + sample;                 // add sample for averaging
+    delayMicroseconds(250);
   }
   
   adcResult = adcResult / noSamples;
   
-  return adcResult;
+  return (long) adcResult;
 }
 
 void clearTXBuffer() {
@@ -279,8 +282,9 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x39: // read pack voltage, unsigned int
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
+        // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        dtostrf(adcDataBuffer[2].adcFloat, 4, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -319,8 +323,9 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x3E: // read bus voltage, unsigned int
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
+        // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        dtostrf(adcDataBuffer[1].adcFloat, 4, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -573,9 +578,9 @@ void setup() {
   Wire.onReceive(receiveEvent); // register receiveEvent event handler
 }
 
-uint16_t i=0;
-uint16_t x=0;
-uint8_t ledX=0;
+uint16_t      i=0;
+uint16_t      x=0;
+uint8_t       ledX=0;
 uint8_t       adcUpdateCnt      = 0;
 const uint8_t adcUpdateInterval = 20;
 
@@ -591,29 +596,23 @@ void loop() {
   if (purgeTXBuffer) clearTXBuffer(); 
 
   if (adcUpdateCnt > adcUpdateInterval) {
-    int rawAdc=0;
-    int acsmvA = 136;
-    int acsOffset = 516;
+    long rawAdc    = 0;
+    int acsmvA     = 136;
+    double sysVcc  = 5.0;
 
-    //rawAdc = readADC(ADC0, 10);
-    rawAdc = analogRead(A0);
-    rawAdc = rawAdc; // subtrack offset
+    rawAdc = readADC(ADC0, 10);
+    //rawAdc = analogRead(ADC0);
+    //rawAdc = rawAdc; // subtrack offset
     adcDataBuffer[0].adcRaw   = rawAdc;
-    adcDataBuffer[0].adcFloat = (float)36.7 * (rawAdc / 5.0) - 18.3;
-    Serial.print("ADC0 ");
-    Serial.print(adcDataBuffer[0].adcFloat);
-    Serial.print(" RAW ");
-    Serial.println(rawAdc);
-    //rawAdc = readADC(ADC1, 10);
-    rawAdc = analogRead(A1);
-    //Serial.printf("ADC1 %i ", rawAdc);
+    adcDataBuffer[0].adcFloat = ((sysVcc / 2) - (rawAdc * (sysVcc / 1024.0))) / acsmvA;
+
+    rawAdc = readADC(ADC1, 10);
     adcDataBuffer[1].adcRaw   = rawAdc;
-    adcDataBuffer[1].adcFloat = (float)rawAdc * (5.0 / 1023.0);
-    //rawAdc = readADC(ADC2, 10);
-    rawAdc = analogRead(A2                                                           );
-    //Serial.printf("ADC2 %i\n", rawAdc);
+    adcDataBuffer[1].adcFloat = (float)rawAdc * (sysVcc / 1024.0);
+
+    rawAdc = readADC(ADC2, 10);
     adcDataBuffer[2].adcRaw   = rawAdc;
-    adcDataBuffer[2].adcFloat = (float)rawAdc * (5.0 / 1023.0);
+    adcDataBuffer[2].adcFloat = (float)rawAdc * (sysVcc / 1024.0);
     adcUpdateCnt = 0;
   }
   
@@ -630,15 +629,14 @@ void loop() {
 
   if (i>1000){
     i=0;
-    ledX = ledX ^ 1;              // xor previous state
-    digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
     if (timeStatus()==timeSet) {             // print timestamps once time is set
-      Serial.printf("Timestamp: %lu\n", now());
+      ledX = ledX ^ 1;              // xor previous state
+      digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
+      // Serial.printf("Timestamp: %lu\n", now());
     } 
     
     recvEvnt = false; // reset flag
     reqEvnt  = false; // reset flag
-
   }
 
   delay(1);
