@@ -22,7 +22,7 @@
 7. Precision fixed resistor for thermistors?
    * Thermistors: NRL1504F3950B1F
    * Thermistors connect to uC ADC
-8. Power selector circuit/IC? Prefer bus power, accept battery power.
+8. Power selector IC: AP2411
 9. Low Iq power supply for battery side, switching or linear?
 10. SMT button for battiery status
 
