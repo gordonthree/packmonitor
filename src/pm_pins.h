@@ -10,9 +10,9 @@
 #define SCL PC5 // A5
 #define SDA PC4 // A4
 
-#define ADC0 A0
+#define ADC0 A1
 #define ADC1 A2
-#define ADC2 A2
+#define ADC2 A3
 #elif MCU_ATMEGA4808
 #define LED1 PF2
 #define LED2 PF3
