@@ -14,9 +14,14 @@ volatile bool mastersetTime    = false;                  // flag that is set whe
 volatile bool txdataReady      = false;                  // flag that is set when data is ready to send to master
 volatile bool purgeTXBuffer    = true;                   // tell loop() to clear the TX buffer
 volatile char txtMessage[50];                            // alternate buffer for message from master
+
 volatile uint8_t messageLen    = 0;                      // message from master length
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
+
+#ifndef I2C_SLAVE_ADDR
+#define I2C_SLAVE_ADDR 0x37
+#endif
 
 char buff[50];
 
@@ -567,7 +572,7 @@ void setup() {
   pinMode(ADC1, INPUT);
   pinMode(ADC2, INPUT);
 
-  Wire.begin(0x37);                // join i2c bus with address #8
+  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus with address #8
   delay(2000);
 
   Serial.begin(115200);
@@ -597,22 +602,35 @@ void loop() {
 
   if (adcUpdateCnt > adcUpdateInterval) {
     long rawAdc    = 0;
-    int acsmvA     = 136;
-    double sysVcc  = 5.0;
+    int acsOffset  = 514;
+    float acsmvA  = 0.136;  // 0.136v or 136mV per amp
+    float Amps    = 0.0;
+    float Volts   = 0.0;
+    float sysVcc  = 4.43;
+    float vDiv3   = 0.31246;
+    float vDiv2   = 1.0;
 
-    rawAdc = readADC(ADC0, 10);
+    rawAdc = readADC(ADC0, 20);
+    rawAdc = rawAdc;
     //rawAdc = analogRead(ADC0);
     //rawAdc = rawAdc; // subtrack offset
-    adcDataBuffer[0].adcRaw   = rawAdc;
-    adcDataBuffer[0].adcFloat = ((sysVcc / 2) - (rawAdc * (sysVcc / 1024.0))) / acsmvA;
+    adcDataBuffer[0].adcRaw = rawAdc;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
+    Amps = (float)Volts / acsmvA;
+    adcDataBuffer[0].adcFloat = Amps;
+    // Serial.printf("Raw %u Volts ", rawAdc);
+    // Serial.print(Volts, 3);
+    // Serial.print("v Amps ");
+    // Serial.print(Amps, 2);
+    // Serial.println("a");
 
-    rawAdc = readADC(ADC1, 10);
+    rawAdc = readADC(ADC1, 20);
     adcDataBuffer[1].adcRaw   = rawAdc;
-    adcDataBuffer[1].adcFloat = (float)rawAdc * (sysVcc / 1024.0);
+    adcDataBuffer[1].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
 
-    rawAdc = readADC(ADC2, 10);
+    rawAdc = readADC(ADC2, 20);
     adcDataBuffer[2].adcRaw   = rawAdc;
-    adcDataBuffer[2].adcFloat = (float)rawAdc * (sysVcc / 1024.0);
+    adcDataBuffer[2].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
     adcUpdateCnt = 0;
   }
   
