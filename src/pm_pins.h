@@ -25,7 +25,7 @@
 // Nano Every: SDA 4 SCL 5 
 #define SCL PA3 
 #define SDA PA2 
-#elif MCU_ATMEGA4809
+#elif MCU_NANOEVERY
 #define LED1 LED_BUILTIN
 #define LED2 4
 #define LED3 3

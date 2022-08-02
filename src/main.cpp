@@ -19,12 +19,22 @@ volatile uint8_t messageLen    = 0;                      // message from master 
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
-#ifndef I2C_SLAVE_ADDR
-#define I2C_SLAVE_ADDR 0x37
+#ifdef I2C_SLAVE_ADDR
+#pragma message "Address found in build flag"
+#else
+#pragma message "Address NOT FOUND in build flag"
+#define I2C_SLAVE_ADDR 0x39
 #endif
 
-#pragma message "Slave address " STR(I2C_SLAVE_ADDR)
+#pragma message STR(I2C_SLAVE_ADDR)
 
+#ifdef MCU_ATMEGA328P
+#pragma message "Compiling for ATmega328P"
+#elif MCU_NANOEVERY
+#pragma message "Compiling for Nano Every"
+#else
+#pragma message "Compiling for Unknown MCU"
+#endif
 
 char buff[200];
 
