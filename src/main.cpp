@@ -23,7 +23,10 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define I2C_SLAVE_ADDR 0x37
 #endif
 
-char buff[50];
+#pragma message "Slave address " STR(I2C_SLAVE_ADDR)
+
+
+char buff[200];
 
 // function to eventually save data to on board FRAM
 void writeFRAMuint(uint8_t myAddr, uint32_t myData) { 
@@ -577,7 +580,8 @@ void setup() {
 
   Serial.begin(115200);
 
-  Serial.println("\n\nHello, world!");
+  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
+  Serial.print(buff);
 
   Wire.onRequest(requestEvent); // register requestEvent event handler
   Wire.onReceive(receiveEvent); // register receiveEvent event handler
@@ -636,13 +640,15 @@ void loop() {
   
   if (unknownCmd) {
     unknownCmd = false;
-    Serial.printf("Command 0x%X: Not recognized\n", rxData.cmdAddr);
+
+    sprintf(buff, "Command 0x%X: Not recognized\n", rxData.cmdAddr);
+    Serial.println(buff);
   }
 
   if (txtmsgWaiting) {            // print message sent by master
     txtmsgWaiting = false;        // clear flag
-    Serial.printf("Message from master: %s", txtMessage);
-    Serial.println();
+    sprintf(buff, "Message from master: %s", txtMessage);
+    Serial.println(buff);
   }
 
   if (i>1000){
