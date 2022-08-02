@@ -26,7 +26,7 @@
 #define SCL PA3 
 #define SDA PA2 
 #elif MCU_NANOEVERY
-#define LED1 LED_BUILTIN
+#define LED1 PE2 // aka LED_BUILTIN
 #define LED2 4
 #define LED3 3
 #define LED4 2
