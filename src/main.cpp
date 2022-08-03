@@ -79,6 +79,9 @@ long readADC(uint8_t adcPin, uint8_t noSamples) {
   uint32_t adcResult = 0;
   int sample         = 0;
   uint8_t  adcX      = 0;
+#ifdef MCU_NANOEVERY
+  analogReference(INTERNAL4V3);  // enable interal 4.3v reference on the Every
+#endif
 
   for (int x=0; x < noSamples; x++) {
     sample = analogRead(adcPin);                    // sample adc pin
@@ -585,10 +588,10 @@ void setup() {
   pinMode(ADC1, INPUT);
   pinMode(ADC2, INPUT);
 
-  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus with address #8
+  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus 
   delay(2000);
 
-  Serial.begin(115200);
+  Serial.begin(921600);
 
   sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
   Serial.print(buff);
@@ -616,14 +619,18 @@ void loop() {
 
   if (adcUpdateCnt > adcUpdateInterval) {
     long rawAdc    = 0;
-    int acsOffset  = 514;
+    //int acsOffset  = 514;
     float acsmvA  = 0.136;  // 0.136v or 136mV per amp
     float Amps    = 0.0;
     float Volts   = 0.0;
     float sysVcc  = 4.43;
     float vDiv3   = 0.31246;
     float vDiv2   = 1.0;
-
+  
+#ifdef MCU_NANOEVERY
+    sysVcc        = 4.300;
+#endif
+ 
     rawAdc = readADC(ADC0, 20);
     rawAdc = rawAdc;
     //rawAdc = analogRead(ADC0);
@@ -632,6 +639,10 @@ void loop() {
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
     Amps = (float)Volts / acsmvA;
     adcDataBuffer[0].adcFloat = Amps;
+    Serial.print("0: ");
+    Serial.print(rawAdc);
+    Serial.print(" 1: ");
+
     // Serial.printf("Raw %u Volts ", rawAdc);
     // Serial.print(Volts, 3);
     // Serial.print("v Amps ");
@@ -639,10 +650,14 @@ void loop() {
     // Serial.println("a");
 
     rawAdc = readADC(ADC1, 20);
+    Serial.print(rawAdc);
+    Serial.print(" 2: ");
     adcDataBuffer[1].adcRaw   = rawAdc;
     adcDataBuffer[1].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
 
     rawAdc = readADC(ADC2, 20);
+    Serial.print(rawAdc);
+    Serial.print("\n");
     adcDataBuffer[2].adcRaw   = rawAdc;
     adcDataBuffer[2].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
     adcUpdateCnt = 0;

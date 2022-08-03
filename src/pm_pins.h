@@ -26,16 +26,16 @@
 #define SCL PA3 
 #define SDA PA2 
 #elif MCU_NANOEVERY
-#define LED1 PE2 // aka LED_BUILTIN
+#define LED1 5 
 #define LED2 4
 #define LED3 3
 #define LED4 2
 
-#define ADC0 14
-#define ADC1 15
-#define ADC2 16
+#define ADC0 15
+#define ADC1 16
+#define ADC2 17
 
 // Nano Every: SDA 4 SCL 5 
-#define SCL 19 
 #define SDA 18 
+#define SCL 19 
 #endif
