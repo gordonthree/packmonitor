@@ -2,7 +2,7 @@
 
 ## These registers are identified by a single command byte and zero or more data bytes
 
-#### 0x00 to 0x20 
+#### 0x00 to 0x20
 
 * (reserved)
 
@@ -71,12 +71,15 @@
 #### 0x29 Read config0 (byte)
 
 * See set config0 for details
+
 #### 0x2A Read config1 (byte)
 
 * See set config1 for details
+
 #### 0x2B Read config2 (byte)
 
 * See set config2 for details
+
 #### 0x2C Read status0 bites
 
 * Bit 7: Config set
@@ -90,52 +93,59 @@
 
 #### 0x2D Read status1 bits
 
-#### 0x2E through 0x2F 
+#### 0x2E through 0x2F
 
 * (reserved)
+
 #### 0x30 Clear coulomb counter, no data
 
+
 * Reset coulomb counter
-#### 0x31 Read coulomb counter. signed int
+
+#### 0x31 Read coulomb counter. returns float as char* array
+
 
 * Shows surplus amps in, or deficit amps out
-#### 0x32 Clear total amps counter, except lifetime
 
-#### 0x33 Read pack amperage, signed int
+#### 0x32 Clear total amps counter, except lifetime, returns float as char* array
 
-#### 0x34 Read total amps in, unsigned long
+#### 0x33 Read load amperage, returns float as char* array
 
-#### 0x35 Read total amps out, unsigned long
+* Current load in amps
 
-#### 0x36 Read lifetime amps in, unsigned long
+#### 0x34 Read total pack amps in, returns float as char* array
 
-#### 0x37 Read lifetime amps out, unsigned long
+#### 0x35 Read total pack amps out, returns float as char* array
+
+#### 0x36 Read lifetime amps in, returns float as char* array
+
+#### 0x37 Read lifetime amps out, returns float as char* array
 
 #### 0x38 Clear voltage memory, no data
 
-#### 0x39 Read pack voltage, unsigned int
+#### 0x39 Read pack voltage, returns float as char* array
 
-* Returns the current pack voltage in millivolts
+* Returns the current pack voltage in volts
 
-#### 0x3A Read lowest voltage memory, unsigned int
+#### 0x3A Read lowest voltage memory, returns float as char* array
 
-* Lowest voltage seen since last clear in millivolts
+* Lowest voltage seen since last clear in volts
 
 #### 0x3B Read lowest voltage timestamp, unsigned long
 
 * Timestamp for when the lowest voltage was recorded
 
-#### 0x3C Read highest voltage memory, unsigned int
+#### 0x3C Read highest voltage memory, returns float as char* array
 
-* Highest voltage seen since last clear in millivolts
+* Highest voltage seen since last clear in volts
 
 #### 0x3D Read highest voltage timestamp, unsigned long
 
 * Timestamp for when the highest voltage was recorded
 
-#### 0x3E Read bus voltage, unsigned int
+#### 0x3E Read bus voltage, returns float as char* array
 
-* Returns the current bus voltage in millivolts
+* Returns the current bus voltage in volts
 
 #### 0x3F 
 
@@ -143,17 +153,17 @@
 
 #### 0x40 Clear temperature memories, no data
 
-#### 0x41 Read T0 thermistor, signed int
+#### 0x41 Read T0 thermistor, returns float as char* array
 
-#### 0x42 Read T0 lowest, signed int
+#### 0x42 Read T0 lowest, returns float as char* array
 
-#### 0x43 Read T0 highest, signed int
+#### 0x43 Read T0 highest, returns float as char* array
 
-#### 0x44 Read T1 thermistor, signed int
+#### 0x44 Read T1 thermistor, returns float as char* array
 
-#### 0x45 Read T1 lowest, signed int
+#### 0x45 Read T1 lowest, returns float as char* array
 
-#### 0x46 Read T1 highest, signed int
+#### 0x46 Read T1 highest, returns float as char* array
 
 #### 0x47 T0 lowest memory timestamp, unsigned long
 
@@ -162,7 +172,8 @@
 #### 0x49 T0 highest memory timestamp, unsigned long
 
 #### 0x4A T1 highest memory timestamp, unsigned long
-#### 0x4B through 0x4F 
+
+#### 0x4B through 0x4F
 
 * (reserved)
 
@@ -182,7 +193,7 @@
 
 #### 0x57 Read last disconnect reason code (byte)
 
-#### 0x58 through 0x5F 
+#### 0x58 through 0x5F
 
 * (reserved)
 
@@ -190,6 +201,7 @@
 
 * Tranfer time from master to slave
 * Expects unix timestamp sent as char string
+
 #### 0x61 Read first-initialized timestamp ulong
 
 #### 0x62 Read current timestamp ulong
@@ -198,6 +210,6 @@
 
 #### 0x64 Read uptime ulong
 
-#### 0x65 through 0xFF 
+#### 0x65 through 0xFF
 
 * (reserved)
