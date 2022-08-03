@@ -13,6 +13,7 @@ volatile bool recvEvnt         = false;                  // flag set when the re
 volatile bool mastersetTime    = false;                  // flag that is set when master has sent time
 volatile bool txdataReady      = false;                  // flag that is set when data is ready to send to master
 volatile bool purgeTXBuffer    = true;                   // tell loop() to clear the TX buffer
+volatile bool purgeRXBuffer    = true;                   // tell loop() to clear the RX buffer
 volatile char txtMessage[50];                            // alternate buffer for message from master
 
 volatile uint8_t messageLen    = 0;                      // message from master length
@@ -20,13 +21,11 @@ volatile time_t lasttimeSync   = 0;                      // when's the last time
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
 #ifdef I2C_SLAVE_ADDR
-#pragma message "Address found in build flag"
+#pragma message "Slave address found in build flag"
 #else
-#pragma message "Address NOT FOUND in build flag"
-#define I2C_SLAVE_ADDR 0x39
+#pragma message "Slave address NOT FOUND in build flag, defaulting to 0x40"
+#define I2C_SLAVE_ADDR 0x40
 #endif
-
-#pragma message STR(I2C_SLAVE_ADDR)
 
 #ifdef MCU_ATMEGA328P
 #pragma message "Compiling for ATmega328P"
@@ -57,9 +56,9 @@ uint32_t readFRAMuint(uint8_t myAddr) {
   uint32_t framData = 0;
   if (myAddr==0x39) { // pack voltage
     framData = adcDataBuffer[2].adcRaw;
-  } else if (myAddr=0x3E) { // bus voltage
+  } else if (myAddr==0x3E) { // bus voltage
     framData = adcDataBuffer[1].adcRaw;
-  } else if (myAddr=0x33) { // active current
+  } else if (myAddr==0x33) { // active current
     framData = adcDataBuffer[0].adcRaw;
   }
   return framData;
@@ -70,9 +69,9 @@ float readFRAMfloat(uint8_t myAddr) {
   float framData = 0.0;
   if (myAddr==0x39) { // pack voltage
     framData = adcDataBuffer[2].Volts;
-  } else if (myAddr=0x3E) { // bus voltage
+  } else if (myAddr==0x3E) { // bus voltage
     framData = adcDataBuffer[1].Volts;
-  } else if (myAddr=0x33) { // active current
+  } else if (myAddr==0x33) { // active current
     framData = adcDataBuffer[0].Amps;
   }
   return framData;
@@ -91,11 +90,11 @@ int16_t readFRAMint(uint8_t myAddr) {
 
 long readADC(uint8_t adcPin, uint8_t noSamples) {
   uint32_t adcResult = 0;
-  int sample         = 0;
+  int      sample    = 0;
   uint8_t  adcX      = 0;
-#ifdef MCU_NANOEVERY
-  analogReference(INTERNAL4V3);  // enable interal 4.3v reference on the Every
-#endif
+// #ifdef MCU_NANOEVERY
+//   analogReference(INTERNAL4V3);  // enable interal 4.3v reference on the Every
+// #endif
 
   for (int x=0; x < noSamples; x++) {
     sample = analogRead(adcPin);                    // sample adc pin
@@ -129,16 +128,17 @@ void clearRXBuffer() {
 
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
-void requestEvent() {                             // master has requested data
+void requestEvent() {   
+  char reqBuff[80];                          // master has requested data
   if (txdataReady) {
     Wire.write((char *) txData.cmdData);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
-    Serial.print("Sent: ");
-    Serial.println((char *) txData.cmdData);
+    sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
+    Serial.println(reqBuff);
   } else {
     sprintf((char) txData.cmdData,"Slave 0x%X ready!", I2C_SLAVE_ADDR);
-    Wire.write((char) buff);                         // didn't have anything to send? respond with message of 6 bytes
-    Serial.println(buff);
+    Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
+    Serial.println((char) txData.cmdData);
   }
   reqEvnt = true;                                 // set flag that we had this interaction
   purgeTXBuffer=true;                                // purge TX buffer
@@ -558,6 +558,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_timeStamp = atol(rxData.cmdData);
         setTime(_isr_timeStamp);                            // fingers crossed
+        Serial.println((char) rxData.cmdData);
         mastersetTime = true;                               // set flag
         lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
         if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
@@ -605,7 +606,7 @@ void receiveEvent(size_t howMany) {
   } // end switch
   sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
   Serial.println(buff);
-  clearRXBuffer(); // purge buffer
+  purgeRXBuffer = true; // ask main loop() to purge buffer
 }
 
 void setup() {
@@ -659,6 +660,7 @@ void loop() {
   digitalWrite(LED4, mastersetTime);
 
   if (purgeTXBuffer) clearTXBuffer(); 
+  if (purgeRXBuffer) clearRXBuffer();
 
   if (adcUpdateCnt > adcUpdateInterval) {
     long rawAdc    = 0;
@@ -670,9 +672,9 @@ void loop() {
     float vDiv3   = 0.31246;
     float vDiv2   = 1.0;
   
-#ifdef MCU_NANOEVERY
-    sysVcc        = 4.300;
-#endif
+// #ifdef MCU_NANOEVERY
+//     sysVcc        = 4.300;
+// #endif
  
     rawAdc = readADC(ADC0, 20);
     rawAdc = rawAdc;
@@ -683,13 +685,13 @@ void loop() {
     Amps =  (float)Volts / acsmvA;
     adcDataBuffer[0].Amps  = Amps;
     adcDataBuffer[0].Volts = Volts;
-    Serial.print("0: ");
-    Serial.print(Amps);
-    Serial.print(" 1: ");
-    Serial.print(Volts, 3);
-    Serial.print("v Raw ");
-    Serial.print(rawAdc);
-    Serial.println(" ");
+    // Serial.print("0: ");
+    // Serial.print(Amps);
+    // Serial.print(" 1: ");
+    // Serial.print(Volts, 3);
+    // Serial.print("v Raw ");
+    // Serial.print(rawAdc);
+    // Serial.println(" ");
 
     rawAdc = readADC(ADC1, 20);
     // Serial.print(rawAdc);
