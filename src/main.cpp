@@ -53,8 +53,8 @@ uint8_t readFRAMbyte(uint8_t myAddr) {
 }
 
 // function to read uint from FRAM
-uint16_t readFRAMuint(uint8_t myAddr) { 
-  uint16_t framData = 0;
+uint32_t readFRAMuint(uint8_t myAddr) { 
+  uint32_t framData = 0;
   if (myAddr==0x39) { // pack voltage
     framData = adcDataBuffer[2].adcRaw;
   } else if (myAddr=0x3E) { // bus voltage
@@ -64,6 +64,20 @@ uint16_t readFRAMuint(uint8_t myAddr) {
   }
   return framData;
 }
+
+// function to read uint from FRAM (eventually)
+float readFRAMfloat(uint8_t myAddr) { 
+  float framData = 0.0;
+  if (myAddr==0x39) { // pack voltage
+    framData = adcDataBuffer[2].Volts;
+  } else if (myAddr=0x3E) { // bus voltage
+    framData = adcDataBuffer[1].Volts;
+  } else if (myAddr=0x33) { // active current
+    framData = adcDataBuffer[0].Amps;
+  }
+  return framData;
+}
+
 
 // function to read ulong from FRAM
 uint32_t readFRAMulong(uint8_t myAddr) { 
@@ -103,14 +117,28 @@ void clearTXBuffer() {
   purgeTXBuffer = false;
 }
 
+void clearRXBuffer() {
+  uint16_t myPtr = 0;
+  rxData.cmdAddr = 0;
+  while (myPtr < rxBufferSize) {
+    rxData.cmdData[myPtr] = '\0';
+    myPtr++;
+  }
+  purgeTXBuffer = false;
+}
+
 // function that executes whenever data is requested by master
 // this function is registered as an event, see setup()
 void requestEvent() {                             // master has requested data
   if (txdataReady) {
     Wire.write((char *) txData.cmdData);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
+    Serial.print("Sent: ");
+    Serial.println((char *) txData.cmdData);
   } else {
-    Wire.write("hello ");                         // didn't have anything to send? respond with message of 6 bytes
+    sprintf((char) txData.cmdData,"Slave 0x%X ready!", I2C_SLAVE_ADDR);
+    Wire.write((char) buff);                         // didn't have anything to send? respond with message of 6 bytes
+    Serial.println(buff);
   }
   reqEvnt = true;                                 // set flag that we had this interaction
   purgeTXBuffer=true;                                // purge TX buffer
@@ -135,6 +163,8 @@ void receiveEvent(size_t howMany) {
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
   switch  (_isr_cmdAddr) {
+    case 0x00: // no command received
+      Serial.println("Address probe detected.");    
     case 0x21: // high current limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
@@ -256,7 +286,8 @@ void receiveEvent(size_t howMany) {
       {
         //_isr_masterInt = readFRAMint(rxData.cmdAddr);
         //ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
-        dtostrf(adcDataBuffer[0].adcFloat, 4, 2, txData.cmdData);
+        float framData = readFRAMfloat(rxData.cmdAddr);
+        dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -293,7 +324,7 @@ void receiveEvent(size_t howMany) {
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
-    case 0x38: // clear voltage memory, no data
+    case 0x38: // clear voltage memory, no data returned
       { 
         writeFRAMint(0x3A, 0);
         writeFRAMint(0x3B, 0);
@@ -301,11 +332,12 @@ void receiveEvent(size_t howMany) {
         writeFRAMint(0x3D, 0);
       }
       break;
-    case 0x39: // read pack voltage, unsigned int
+    case 0x39: // read pack voltage, char* array
       {
         // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
         // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        dtostrf(adcDataBuffer[2].adcFloat, 4, 2, txData.cmdData);
+        float framData = readFRAMfloat(rxData.cmdAddr);
+        dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -342,11 +374,12 @@ void receiveEvent(size_t howMany) {
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
-    case 0x3E: // read bus voltage, unsigned int
+    case 0x3E: // read bus voltage, char* array
       {
         // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
         // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        dtostrf(adcDataBuffer[1].adcFloat, 4, 2, txData.cmdData);
+        float framData = readFRAMfloat(rxData.cmdAddr);
+        dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -570,6 +603,9 @@ void receiveEvent(size_t howMany) {
       }
       break;
   } // end switch
+  sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
+  Serial.println(buff);
+  clearRXBuffer(); // purge buffer
 }
 
 void setup() {
@@ -589,15 +625,22 @@ void setup() {
   pinMode(ADC2, INPUT);
 
   Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus 
+#ifdef MCU_NANOEVERY
+  TWI0_SCTRLA |= (1<<TWI_DIEN_bp);           // manually enable data interrupt on the Every
+#endif
   delay(2000);
 
+#ifdef MCU_NANOEVERY
   Serial.begin(921600);
+#else
+  Serial.begin(115200);
+#endif
 
   sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
   Serial.print(buff);
 
-  Wire.onRequest(requestEvent); // register requestEvent event handler
-  Wire.onReceive(receiveEvent); // register receiveEvent event handler
+  Wire.onRequest(requestEvent); // register requestEvent interrupt handler
+  Wire.onReceive(receiveEvent); // register receiveEvent interrupt handler
 }
 
 uint16_t      i=0;
@@ -637,29 +680,30 @@ void loop() {
     //rawAdc = rawAdc; // subtrack offset
     adcDataBuffer[0].adcRaw = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
-    Amps = (float)Volts / acsmvA;
-    adcDataBuffer[0].adcFloat = Amps;
+    Amps =  (float)Volts / acsmvA;
+    adcDataBuffer[0].Amps  = Amps;
+    adcDataBuffer[0].Volts = Volts;
     Serial.print("0: ");
-    Serial.print(rawAdc);
+    Serial.print(Amps);
     Serial.print(" 1: ");
-
-    // Serial.printf("Raw %u Volts ", rawAdc);
-    // Serial.print(Volts, 3);
-    // Serial.print("v Amps ");
-    // Serial.print(Amps, 2);
-    // Serial.println("a");
+    Serial.print(Volts, 3);
+    Serial.print("v Raw ");
+    Serial.print(rawAdc);
+    Serial.println(" ");
 
     rawAdc = readADC(ADC1, 20);
-    Serial.print(rawAdc);
-    Serial.print(" 2: ");
+    // Serial.print(rawAdc);
+    // Serial.print(" 2: ");
     adcDataBuffer[1].adcRaw   = rawAdc;
-    adcDataBuffer[1].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
+    adcDataBuffer[1].Volts = Volts;
 
     rawAdc = readADC(ADC2, 20);
-    Serial.print(rawAdc);
-    Serial.print("\n");
+    // Serial.print(rawAdc);
+    // Serial.print("\n");
     adcDataBuffer[2].adcRaw   = rawAdc;
-    adcDataBuffer[2].adcFloat = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
+    adcDataBuffer[1].Volts = Volts;
     adcUpdateCnt = 0;
   }
   

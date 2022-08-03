@@ -20,9 +20,8 @@ struct ADC_DATA {
   int32_t adcRaw   = 0;                 // raw value
   int32_t adcMin   = 0;                 // raw value
   int32_t adcMax   = 0;                 // raw value
-  double  adcFloat = 0.0;               // formatted value
-  double  minFloat = 0.0;               // formatted value
-  double  maxFloat = 0.0;               // formatted value
+  double  Amps     = 0.0;               // formatted value
+  double  Volts    = 0.0;               // formatted value
 };
 
 volatile I2C_RX_DATA rxData;
