@@ -20,6 +20,10 @@ volatile uint8_t messageLen    = 0;                      // message from master 
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
+#ifdef MEGACOREX
+#pragma message "Compiled using MegaCoreX!"
+#endif
+
 #ifdef I2C_SLAVE_ADDR
 #pragma message "Slave address found in build flag"
 #else
