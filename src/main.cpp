@@ -20,8 +20,8 @@ volatile uint8_t messageLen    = 0;                      // message from master 
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
-#ifdef MEGACOREX
-#pragma message "Compiled using MegaCoreX!"
+#ifdef DXCORE
+#pragma message "Compiled using DxCORE!"
 #endif
 
 #ifdef I2C_SLAVE_ADDR
@@ -31,16 +31,10 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define I2C_SLAVE_ADDR 0x40
 #endif
 
-#ifdef MCU_ATMEGA328P
-#pragma message "Compiling for ATmega328P"
-#define SERIALBAUD 115200
-#elif MCU_NANOEVERY
-#pragma message "Compiling for Nano Every"
-#define SERIALBAUD 921600
-#elif MCU_AVR128DA28
+#ifdef  MCU_AVR128DA28
 #pragma message "Compiling for AVR128DA28"
 #define SERIALBAUD 921600
-#elif MCU_AVR128DA32
+#elif   MCU_AVR128DA32
 #pragma message "Compiling for AVR128DA32"
 #define SERIALBAUD 921600
 #else
