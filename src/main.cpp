@@ -29,11 +29,15 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 
 #ifdef MCU_ATMEGA328P
 #pragma message "Compiling for ATmega328P"
+#define SERIALBAUD 115200
 #elif MCU_NANOEVERY
 #pragma message "Compiling for Nano Every"
+#define SERIALBAUD 921600
 #else
+#define SERIALBAUD 115200
 #pragma message "Compiling for Unknown MCU"
 #endif
+
 
 char buff[200];
 
@@ -131,14 +135,14 @@ void clearRXBuffer() {
 void requestEvent() {   
   char reqBuff[80];                          // master has requested data
   if (txdataReady) {
-    Wire.write((char *) txData.cmdData);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
+    Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
-    sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
-    Serial.println(reqBuff);
+    // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
+    // Serial.println(reqBuff);
   } else {
     sprintf((char) txData.cmdData,"Slave 0x%X ready!", I2C_SLAVE_ADDR);
     Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
-    Serial.println((char) txData.cmdData);
+    // Serial.println((char) txData.cmdData);
   }
   reqEvnt = true;                                 // set flag that we had this interaction
   purgeTXBuffer=true;                                // purge TX buffer
@@ -152,13 +156,20 @@ void receiveEvent(size_t howMany) {
   int16_t   _isr_masterInt   = 0;
   uint32_t  _isr_masterUlong = 0;
   int32_t   _isr_masterLong  = 0;
-
   uint32_t  _isr_timeStamp   = 0;
 
 
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
-  // Serial.printf("RX cmd 0x%X and %u bytes\n", rxData.cmdAddr, rxData.dataLen);
+  // sprintf(buff, "RX cmd 0x%X plus %u data bytes\n", rxData.cmdAddr, rxData.dataLen);
+  // Serial.print(buff);
+  
+  rxData.cmdData[howMany] = '\0'; // set the Nth byte as a null
+  // for (int xx = 0; xx<howMany; xx++) {
+  //   Serial.print(rxData.cmdData[xx]);
+  // }
+  // Serial.println(" ");
+
   recvEvnt = true;                                                 // set event flag
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
@@ -556,12 +567,17 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x60: // set time from master, char string
       {
-        _isr_timeStamp = atol(rxData.cmdData);
-        setTime(_isr_timeStamp);                            // fingers crossed
-        Serial.println((char) rxData.cmdData);
-        mastersetTime = true;                               // set flag
-        lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
-        if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
+        // Serial.println((char) rxData.cmdData);
+        _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
+        if (_isr_timeStamp>1000000000) {
+          setTime(_isr_timeStamp);                            // fingers crossed
+          mastersetTime = true;                               // set flag
+          lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
+          if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
+          // sprintf(buff, "Timestamp %lu", _isr_timeStamp);
+          // Serial.println(buff);
+        } 
+        // else Serial.println("Error receiving timestamp!");
       }
       break;
     case 0x61: // read first-init timestamp, ulong
@@ -604,8 +620,8 @@ void receiveEvent(size_t howMany) {
       }
       break;
   } // end switch
-  sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
-  Serial.println(buff);
+  // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
+  // Serial.println(buff);
   purgeRXBuffer = true; // ask main loop() to purge buffer
 }
 
@@ -631,11 +647,13 @@ void setup() {
 #endif
   delay(2000);
 
-#ifdef MCU_NANOEVERY
-  Serial.begin(921600);
-#else
-  Serial.begin(115200);
-#endif
+// #ifdef MCU_NANOEVERY
+//   Serial.begin(921600);
+// #elif MCU_ATMEGA328P
+//   Serial.begin(256000);
+// #endif
+
+  Serial.begin(SERIALBAUD);
 
   sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
   Serial.print(buff);
@@ -669,8 +687,8 @@ void loop() {
     float Amps    = 0.0;
     float Volts   = 0.0;
     float sysVcc  = 4.43;
-    float vDiv3   = 0.31246;
     float vDiv2   = 1.0;
+    float vDiv3   = 1.0;
   
 // #ifdef MCU_NANOEVERY
 //     sysVcc        = 4.300;
@@ -695,14 +713,13 @@ void loop() {
 
     rawAdc = readADC(ADC1, 20);
     // Serial.print(rawAdc);
-    // Serial.print(" 2: ");
+    // Serial.print(" <-ADC1 ADC2-> ");
     adcDataBuffer[1].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
     adcDataBuffer[1].Volts = Volts;
 
     rawAdc = readADC(ADC2, 20);
-    // Serial.print(rawAdc);
-    // Serial.print("\n");
+    // Serial.println(rawAdc);
     adcDataBuffer[2].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
     adcDataBuffer[1].Volts = Volts;

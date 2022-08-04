@@ -6,13 +6,13 @@ const uint8_t adcBufferSize = 4;        // adc1 current, adc2 pack voltage, adc3
 
 struct I2C_RX_DATA {
   uint8_t cmdAddr               = 0;    // single byte command register
-  uint8_t cmdData[rxBufferSize] = {};   // room for N bytes of data
+  char cmdData[rxBufferSize] = {};   // room for N bytes of data
   size_t  dataLen               = 0;    // number of bytes in buffer
 };
 
 struct I2C_TX_DATA {
   uint8_t cmdData[txBufferSize] = {};   // room for N bytes of data
-  size_t  dataLen = 0;
+  size_t  dataLen = 50;
 };
 
 struct ADC_DATA {
@@ -26,4 +26,4 @@ struct ADC_DATA {
 
 volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
-volatile ADC_DATA adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
+volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
