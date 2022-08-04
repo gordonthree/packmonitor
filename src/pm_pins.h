@@ -25,6 +25,18 @@
 // Nano Every: SDA 4 SCL 5 
 #define SCL PA3 
 #define SDA PA2 
+#elif MCU_AVR128DA28
+#define LED1 0 // PA0
+#define LED2 1 // PA1
+#define LED3 2 // PA2
+#define LED4 3 // PA3
+
+#define ADC0 13 // PD1
+#define ADC1 14 // PD2
+#define ADC2 15 // PD3
+// Nano Every: SDA 4 SCL 5 
+#define SCL 3 // PA3
+#define SDA 2 // PA2
 #elif MCU_NANOEVERY
 #define LED1 5 
 #define LED2 4
