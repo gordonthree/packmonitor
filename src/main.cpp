@@ -40,6 +40,9 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #elif MCU_AVR128DA28
 #pragma message "Compiling for AVR128DA28"
 #define SERIALBAUD 921600
+#elif MCU_AVR128DA32
+#pragma message "Compiling for AVR128DA32"
+#define SERIALBAUD 921600
 #else
 #define SERIALBAUD 115200
 #pragma message "Compiling for Unknown MCU"

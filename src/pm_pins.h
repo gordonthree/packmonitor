@@ -49,8 +49,8 @@
 #define ADC2 17 // PD3
 #define ADC3 18 // PD3
 // Nano Every: SDA 4 SCL 5 
-#define SCL 3 // PA3
-#define SDA 2 // PA2
+//#define SCL 3 // PA3
+//#define SDA 2 // PA2
 #elif MCU_NANOEVERY
 #define LED1 5 
 #define LED2 4
