@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <I2C_eeprom.h>
 
 #include "time.h"
 #include "TimeLib.h"
@@ -655,7 +656,7 @@ void setup() {
     i2c_master.setClock(100000);        // bus speed 100khz
 
     // i2c_slave is TWI0, accept default pins, should be PA2, PA3
-    i2c_slave.pins(SDA0. SCL0);         // TWI0 on pins PA2, PA3
+    //i2c_slave.pins(SDA0, SCL0);         // TWI0 on pins PA2, PA3, not needed?
     i2c_slave.begin(I2C_SLAVE_ADDR); 
   #else 
     // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
