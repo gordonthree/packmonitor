@@ -11,3 +11,7 @@ void i2cWriteUL(uint8_t slaveAddress, uint8_t cmdAddress, uint32_t cmdData) ;
 float i2cReadF(uint8_t slaveAddress, uint8_t cmdAddress) ;
 uint32_t i2cReadUL(uint8_t slaveAddress, uint8_t cmdAddress);
 long i2cReadI(int slaveAddress, int cmdAddress);
+float i2cReadFloat(int slaveAddress, int cmdAddress);
+uint32_t i2cReadUlong(int slaveAddress, int cmdAddress);
+void i2cWriteFloat(int slaveAddress, int cmdAddress, float cmdData);
+void i2cWriteUlong(int slaveAddress, int cmdAddress, uint32_t cmdData);

@@ -27,3 +27,15 @@ struct ADC_DATA {
 volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
 volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
+
+union ulongArray
+{
+    uint32_t longNumber=0;
+    uint8_t  byteArray[4];
+};
+
+union floatArray
+{
+    float   floatNumber=0.0;
+    uint8_t byteArray[4];
+};

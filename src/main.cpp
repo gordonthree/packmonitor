@@ -4,7 +4,7 @@
 #include "TimeLib.h"
 #include "pm_pins.h"
 #include "pm_struct.h"
-
+#include "packmonlib.h"
 
 volatile bool unknownCmd       = false;                  // flag indicating unknown command received
 volatile bool txtmsgWaiting    = false;                  // flag indicating message from master is waiting
