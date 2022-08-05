@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include <Wire.h>
+
 #include "time.h"
 #include "TimeLib.h"
 #include "pm_pins.h"
 #include "pm_struct.h"
-
 
 volatile bool unknownCmd       = false;                  // flag indicating unknown command received
 volatile bool txtmsgWaiting    = false;                  // flag indicating message from master is waiting
@@ -41,7 +41,6 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define SERIALBAUD 115200
 #pragma message "Compiling for Unknown MCU"
 #endif
-
 
 char buff[200];
 
@@ -631,8 +630,8 @@ void receiveEvent(size_t howMany) {
 
 void setup() {
   // initialize I2C pins
-  pinMode(SCL, INPUT);
-  pinMode(SDA, INPUT);
+  // pinMode(SCL, INPUT);
+  // pinMode(SDA, INPUT);
 
   // initialize LEDs outputs
   pinMode(LED1, OUTPUT);
@@ -644,11 +643,19 @@ void setup() {
   pinMode(ADC0, INPUT);
   pinMode(ADC1, INPUT);
   pinMode(ADC2, INPUT);
+  pinMode(ADC3, INPUT);
 
-  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus 
-#ifdef MCU_NANOEVERY
-  TWI0_SCTRLA |= (1<<TWI_DIEN_bp);           // manually enable data interrupt on the Every
-#endif
+//#if defined(TWI_DUALCTRL) || defined(TWI1)
+  // Wire1.pins(SDA1, SCL1);
+  Wire1.begin(); // master on secondary pins (twi1 for the 32 pin chip)
+  Wire1.setClock(100000);
+
+  Wire.pins(SDA0, SCL0);
+  Wire.begin(I2C_SLAVE_ADDR); // slave on twi0
+//#else
+// #pragma message "Single I2C availble, slave only mode"
+//   Wire.begin(I2C_SLAVE_ADDR); // slave on twi0
+// #endif
   delay(2000);
 
 // #ifdef MCU_NANOEVERY
