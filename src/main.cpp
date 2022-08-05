@@ -637,10 +637,6 @@ TwoWire i2c_master(&TWI0);
 #endif
 
 void setup() {
-  // initialize I2C pins
-  // pinMode(SCL, INPUT);
-  // pinMode(SDA, INPUT);
-
   // initialize LEDs outputs
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
@@ -654,19 +650,19 @@ void setup() {
   pinMode(ADC3, INPUT);
 
   #if defined(TWI_MORS_BOTH)
-    i2c_master.begin(); // master on TWI1 pins, no alternatives available on the 32 pin chip
+    i2c_master.begin(); // i2c_master is TWI1, using default pins PF2, PF3
     i2c_master.setClock(100000);  // bus speed 100khz
 
-    //Wire.pins(SDA0, SCL0); // slave on preferred TWI0 pins throws an error that I'm not allowed to change pins
+    // i2c_slave is TWI0, accept default pins, should be PA2, PA3
     i2c_slave.begin(I2C_SLAVE_ADDR); 
   #else 
-    // No TWI1, so setup TWI0 for dual mode ... TWI_MANDS_SINGLE
-    // Wire1.pins(SDA1, SCL1);
-    i2c_master.begin(SDA1,SCL1); // master on secondary pins (twi1 for the 32 pin chip)
-    i2c_master.setClock(100000);
+    // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+    i2c_master.begin(PIN_PA2, PIN_PA3); // master on secondary pins (twi1 for the 32 pin chip)
+    i2c_master.setClock(100000); // 100khz clock
 
-    // i2c_slave.begin(SDA0, SCL0); // slave on primary pins
+    i2c_slave.pins(PIN_PC2, PIN_PC3); // slave on default pins per datasheet per TWIROUTE0, TWI0[1:0]
     i2c_slave.begin(I2C_SLAVE_ADDR); // slave on twi0
+// i2c_slave.begin(PIN_PC2, PIN_PC3, I2C_SLAVE_ADDR); // slave on twi0
   #endif
 
   #ifdef TWI_MANDS_SINGLE 
