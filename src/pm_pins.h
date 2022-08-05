@@ -2,10 +2,10 @@
 
 #ifdef  MCU_AVR128DA28
 // LEDs used on breadboard only
-#define LED1 PIN_PA4 // PA0
-#define LED2 PIN_PA5 // PA1
-#define LED3 PIN_PA6 // PA2
-#define LED4 PIN_PA7 // PA3
+#define LED1 PIN_PA4 // 
+#define LED2 PIN_PA5 // 
+#define LED3 PIN_PA6 // 
+#define LED4 PIN_PA7 // 
 
 // left hand side of the chip
 #define ADC0 PIN_PD1 // PD1
