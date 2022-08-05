@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "pm_struct.h"
+
 void i2cWriteUL(uint8_t slaveAddress, uint8_t cmdAddress, uint32_t cmdData) ;
 float i2cReadF(uint8_t slaveAddress, uint8_t cmdAddress) ;
 uint32_t i2cReadUL(uint8_t slaveAddress, uint8_t cmdAddress);
