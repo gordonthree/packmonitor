@@ -628,6 +628,14 @@ void receiveEvent(size_t howMany) {
   purgeRXBuffer = true; // ask main loop() to purge buffer
 }
 
+#if defined(TWI_MORS_BOTH)
+TwoWire i2c_slave(&TWI0);
+TwoWire i2c_master(&TWI1);
+#elif defined(TWI_MANDS_SINGLE)
+TwoWire i2c_slave(&TWI0);
+TwoWire i2c_master(&TWI0);
+#endif
+
 void setup() {
   // initialize I2C pins
   // pinMode(SCL, INPUT);
@@ -645,24 +653,27 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
-//#if defined(TWI_DUALCTRL) || defined(TWI1)
-  // Wire1.pins(SDA1, SCL1);
-  Wire1.begin(); // master on secondary pins (twi1 for the 32 pin chip)
-  Wire1.setClock(100000);
+  #if defined(TWI_MORS_BOTH)
+    i2c_master.begin(); // master on TWI1 pins, no alternatives available on the 32 pin chip
+    i2c_master.setClock(100000);  // bus speed 100khz
 
-  Wire.pins(SDA0, SCL0);
-  Wire.begin(I2C_SLAVE_ADDR); // slave on twi0
-//#else
-// #pragma message "Single I2C availble, slave only mode"
-//   Wire.begin(I2C_SLAVE_ADDR); // slave on twi0
-// #endif
+    //Wire.pins(SDA0, SCL0); // slave on preferred TWI0 pins throws an error that I'm not allowed to change pins
+    i2c_slave.begin(I2C_SLAVE_ADDR); 
+  #else 
+    // No TWI1, so setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+    // Wire1.pins(SDA1, SCL1);
+    i2c_master.begin(SDA1,SCL1); // master on secondary pins (twi1 for the 32 pin chip)
+    i2c_master.setClock(100000);
+
+    // i2c_slave.begin(SDA0, SCL0); // slave on primary pins
+    i2c_slave.begin(I2C_SLAVE_ADDR); // slave on twi0
+  #endif
+
+  #ifdef TWI_MANDS_SINGLE 
+    #pragma message "TWI_MANDS_SINGLE defined!"
+  #endif
+
   delay(2000);
-
-// #ifdef MCU_NANOEVERY
-//   Serial.begin(921600);
-// #elif MCU_ATMEGA328P
-//   Serial.begin(256000);
-// #endif
 
   Serial.begin(SERIALBAUD);
 
