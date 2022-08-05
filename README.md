@@ -11,20 +11,20 @@
 5. Provide over-temperature disconnect
 
 ## Features:
-1. Atmel AVR Micro: ATMEGA4808 TQFP-32
+1. Atmel AVR: AVR128DA32 or AVR128DA28
 1. Hall effect current sensor: TMCS1108
    * Check my inventory for ACS7xx sensors!
-3. FRAM data storage : I2C FM24C64B
+3. FRAM for local data caching: I2C FM24C64B
 4. Precision ADC: I2C NAU7802
-5. Hot swap buffer: I2C TCA4311a, PCA9508
-1. Host side i2c mux: PCA9545A
+5. Hot swap buffer: I2C TCA4311a / PCA9508 (pin compatible)
+1. Host side i2c mux: PCA9545A (hope to avoid)
 6. Max PCB width 18mm
 7. Precision fixed resistor for thermistors?
    * Thermistors: NRL1504F3950B1F
-   * Thermistors connect to uC ADC
-8. Power selector IC: AP2411
-9. Low Iq power supply for battery side, switching or linear?
-10. SMT button for battiery status
+   * Thermistors connect to uC ADC, 12 bit good 'nuff
+8. ~~Power selector IC: AP2411~~
+9. Low Iq power supply for battery side, switching, not sure yet!
+10. SMT button for battiery status, not sure yet, board is pretty tight
 
 ## Connectors:
 
@@ -36,7 +36,7 @@
    * TCA4311 on battery side
    * I2C switch on host side (might not need)
 
-## Indicators:
+## Indicators (not likely):
 
 1. Bus controlled:
    * Bus power (from vcc)
