@@ -650,23 +650,25 @@ void setup() {
   pinMode(ADC3, INPUT);
 
   #if defined(TWI_MORS_BOTH)
-    i2c_master.begin(); // i2c_master is TWI1, using default pins PF2, PF3
-    i2c_master.setClock(100000);  // bus speed 100khz
+    #pragma message "TWI_MORS_BOTH is defined!"
+    i2c_master.begin();                 // i2c_master is TWI1, using pins PF2, PF3 - only option for 32 pin chip
+    i2c_master.setClock(100000);        // bus speed 100khz
 
     // i2c_slave is TWI0, accept default pins, should be PA2, PA3
+    i2c_slave.pins(SDA0. SCL0);         // TWI0 on pins PA2, PA3
     i2c_slave.begin(I2C_SLAVE_ADDR); 
   #else 
     // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
-    i2c_master.begin(PIN_PC2, PIN_PC3); // master on alternate pins
-    i2c_master.setClock(100000); // 100khz clock
+    i2c_master.begin(SDA1, SCL1);       // master on alternate pins
+    i2c_master.setClock(100000);        // 100khz clock
 
     // Setup second instance of TWO0 as slave
-    i2c_slave.pins(PIN_PA2, PIN_PA3); // pins per datasheet per TWIROUTE0, TWI0[1:0]
-    i2c_slave.begin(I2C_SLAVE_ADDR);  // set slave address
+    i2c_slave.pins(SDA0, SCL0);         // pins per datasheet per TWIROUTE0, TWI0[1:0]
+    i2c_slave.begin(I2C_SLAVE_ADDR);    // set slave address
   #endif
 
   #ifdef TWI_MANDS_SINGLE 
-    #pragma message "TWI_MANDS_SINGLE defined!"
+    #pragma message "TWI_MANDS_SINGLE is defined!"
   #endif
 
   delay(2000);
