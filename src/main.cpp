@@ -40,7 +40,7 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define SERIALBAUD 921600
 #elif MCU_AVR128DA28
 #pragma message "Compiling for AVR128DA28"
-#define SERIALBAUD 57600
+#define SERIALBAUD 115200
 #elif MCU_AVR128DA32
 #pragma message "Compiling for AVR128DA32"
 #define SERIALBAUD 921600
@@ -52,6 +52,8 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 PackMonLib toolbox();
 
 char buff[200];
+
+void receiveEvent(size_t howMany);
 
 // function to eventually save data to on board FRAM
 void writeFRAMuint(uint8_t myAddr, uint32_t myData) { 
@@ -150,14 +152,183 @@ void requestEvent() {
     Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
     // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
-    // Serial.println(reqBuff);
+    // ser.println(reqBuff);
   } else {
     sprintf((char) txData.cmdData,"Slave 0x%X ready!", I2C_SLAVE_ADDR);
     Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
-    // Serial.println((char) txData.cmdData);
+    // ser.println((char) txData.cmdData);
   }
   reqEvnt = true;                                 // set flag that we had this interaction
   purgeTXBuffer=true;                                // purge TX buffer
+}
+
+
+// #if defined(TWI_MORS_BOTH)
+// TwoWire i2c_slave(TWI0);
+// TwoWire i2c_master(TWI1);
+// #elif defined(TWI_MANDS_SINGLE)
+// TwoWire i2c_slave(TWI0);
+// TwoWire i2c_master(TWI0);
+// #endif
+
+#define ser Serial1
+#if defined(TWI_MORS_BOTH)
+  #define i2c_master TWI1
+#endif
+
+void setup() {
+  // initialize LEDs outputs
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
+  pinMode(LED3, OUTPUT);
+  pinMode(LED4, OUTPUT);
+
+  // init ADC pins
+  pinMode(ADC0, INPUT);
+  pinMode(ADC1, INPUT);
+  pinMode(ADC2, INPUT);
+  pinMode(ADC3, INPUT);
+
+  #if defined(TWI_MORS_BOTH)
+    i2c_master.begin(); // i2c_master is TWI1, using default pins PF2, PF3
+    i2c_master.usePullups();
+    i2c_master.setClock(100000);  // bus speed 100khz
+
+    // i2c_slave is TWI0, accept default pins, should be PA2, PA3
+    Wire.begin(I2C_SLAVE_ADDR); 
+  #elif defined(TWI_MANDS_SINGLE) 
+    // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+    Wire.enableDualMode(true);
+    Wire.usePullups();
+    Wire.begin();
+    Wire.begin(I2C_SLAVE_ADDR);
+    Wire.setClock(100000);
+    // i2c_master.begin(SDA1,SCL1); // master on secondary pins (twi1 for the 32 pin chip)
+    // i2c_master.setClock(100000); // 100khz clock
+
+    // i2c_slave.pins(SDA0, SCL0); // slave on default pins per datasheet per TWIROUTE0, TWI0[1:0]
+    // i2c_slave.begin(I2C_SLAVE_ADDR); // slave on twi0
+// i2c_slave.begin(PIN_PC2, PIN_PC3, I2C_SLAVE_ADDR); // slave on twi0
+  #else
+    Wire.usePullups();
+    Wire.begin(I2C_SLAVE_ADDR);
+  #endif
+
+  #ifdef TWI_MANDS_SINGLE 
+    #pragma message "TWI_MANDS_SINGLE defined!"
+  #endif
+
+  delay(2000);
+
+// #ifdef MCU_NANOEVERY
+//   ser.begin(921600);
+// #elif MCU_ATMEGA328P
+//   ser.begin(256000);
+// #endif
+
+  
+  //ser.pins(PIN_PA0, PIN_PA1);
+  ser.begin(SERIALBAUD); 
+
+  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
+  ser.print(buff);
+
+  ser.flush();
+  
+  Wire.onRequest(requestEvent); // register requestEvent interrupt handler
+  Wire.onReceive(receiveEvent); // register receiveEvent interrupt handler
+}
+
+uint16_t      i=0;
+uint16_t      x=0;
+uint8_t       ledX=0;
+uint8_t       adcUpdateCnt      = 0;
+const uint8_t adcUpdateInterval = 20;
+
+// the loop function runs over and over again forever
+void loop() {
+  i++;
+  adcUpdateCnt++;
+
+  digitalWrite(LED2, reqEvnt);
+  digitalWrite(LED3, recvEvnt);
+  digitalWrite(LED4, mastersetTime);
+
+  if (purgeTXBuffer) clearTXBuffer(); 
+  if (purgeRXBuffer) clearRXBuffer();
+
+  if (adcUpdateCnt > adcUpdateInterval) {
+    long rawAdc    = 0;
+    //int acsOffset  = 514;
+    float acsmvA  = 0.136;  // 0.136v or 136mV per amp
+    float Amps    = 0.0;
+    float Volts   = 0.0;
+    float sysVcc  = 4.43;
+    float vDiv2   = 1.0;
+    float vDiv3   = 1.0;
+  
+// #ifdef MCU_NANOEVERY
+//     sysVcc        = 4.300;
+// #endif
+ 
+    rawAdc = readADC(ADC0, 20);
+    rawAdc = rawAdc;
+    //rawAdc = analogRead(ADC0);
+    //rawAdc = rawAdc; // subtrack offset
+    adcDataBuffer[0].adcRaw = rawAdc;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
+    Amps =  (float)Volts / acsmvA;
+    adcDataBuffer[0].Amps  = Amps;
+    adcDataBuffer[0].Volts = Volts;
+    // ser.print("0: ");
+    // ser.print(Amps);
+    // ser.print(" 1: ");
+    // ser.print(Volts, 3);
+    // ser.print("v Raw ");
+    // ser.print(rawAdc);
+    // ser.println(" ");
+
+    rawAdc = readADC(ADC1, 20);
+    // ser.print(rawAdc);
+    // ser.print(" <-ADC1 ADC2-> ");
+    adcDataBuffer[1].adcRaw   = rawAdc;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
+    adcDataBuffer[1].Volts = Volts;
+
+    rawAdc = readADC(ADC2, 20);
+    // ser.println(rawAdc);
+    adcDataBuffer[2].adcRaw   = rawAdc;
+    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
+    adcDataBuffer[1].Volts = Volts;
+    adcUpdateCnt = 0;
+  }
+  
+  if (unknownCmd) {
+    unknownCmd = false;
+
+    sprintf(buff, "Command 0x%X: Not recognized\n", rxData.cmdAddr);
+    ser.println(buff);
+  }
+
+  if (txtmsgWaiting) {            // print message sent by master
+    txtmsgWaiting = false;        // clear flag
+    sprintf(buff, "Message from master: %s", txtMessage);
+    ser.println(buff);
+  }
+
+  if (i>1000){
+    i=0;
+    // if (timeStatus()==timeSet) {             // print timestamps once time is set
+      ledX = ledX ^ 1;              // xor previous state
+      digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
+      // ser.printf("Timestamp: %lu\n", now());
+    // } 
+    
+    recvEvnt = false; // reset flag
+    reqEvnt  = false; // reset flag
+  }
+
+  delay(1);
 }
 
 // function that executes whenever data is received from master
@@ -174,20 +345,20 @@ void receiveEvent(size_t howMany) {
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
   // sprintf(buff, "RX cmd 0x%X plus %u data bytes\n", rxData.cmdAddr, rxData.dataLen);
-  // Serial.print(buff);
+  // ser.print(buff);
   
   rxData.cmdData[howMany] = '\0'; // set the Nth byte as a null
   // for (int xx = 0; xx<howMany; xx++) {
-  //   Serial.print(rxData.cmdData[xx]);
+  //   ser.print(rxData.cmdData[xx]);
   // }
-  // Serial.println(" ");
+  // ser.println(" ");
 
   recvEvnt = true;                                                 // set event flag
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
   switch  (_isr_cmdAddr) {
     case 0x00: // no command received
-      Serial.println("Address probe detected.");    
+      ser.println("Address probe detected.");    
     case 0x21: // high current limit, unsigned int
       {
         _isr_masterUint = atol(rxData.cmdData);
@@ -579,7 +750,7 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x60: // set time from master, char string
       {
-        // Serial.println((char) rxData.cmdData);
+        // ser.println((char) rxData.cmdData);
         _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
         if (_isr_timeStamp>1000000000) {
           setTime(_isr_timeStamp);                            // fingers crossed
@@ -587,9 +758,9 @@ void receiveEvent(size_t howMany) {
           lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
           if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
           // sprintf(buff, "Timestamp %lu", _isr_timeStamp);
-          // Serial.println(buff);
+          // ser.println(buff);
         } 
-        // else Serial.println("Error receiving timestamp!");
+        // else ser.println("Error receiving timestamp!");
       }
       break;
     case 0x61: // read first-init timestamp, ulong
@@ -633,139 +804,6 @@ void receiveEvent(size_t howMany) {
       break;
   } // end switch
   // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
-  // Serial.println(buff);
+  // ser.println(buff);
   purgeRXBuffer = true; // ask main loop() to purge buffer
-}
-
-void setup() {
-  // initialize I2C pins
-  pinMode(SCL, INPUT);
-  pinMode(SDA, INPUT);
-
-  // initialize LEDs outputs
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
-  pinMode(LED4, OUTPUT);
-
-  // init ADC pins
-  pinMode(ADC0, INPUT);
-  pinMode(ADC1, INPUT);
-  pinMode(ADC2, INPUT);
-
-  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus 
-#ifdef MCU_NANOEVERY
-  TWI0_SCTRLA |= (1<<TWI_DIEN_bp);           // manually enable data interrupt on the Every
-#endif
-  delay(2000);
-
-// #ifdef MCU_NANOEVERY
-//   Serial.begin(921600);
-// #elif MCU_ATMEGA328P
-//   Serial.begin(256000);
-// #endif
-
-  
-  //Serial.pins(PIN_PA0, PIN_PA1);
-  Serial.begin(SERIALBAUD); 
-
-  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
-  Serial.print(buff);
-
-  Serial.flush();
-  
-  Wire.onRequest(requestEvent); // register requestEvent interrupt handler
-  Wire.onReceive(receiveEvent); // register receiveEvent interrupt handler
-}
-
-uint16_t      i=0;
-uint16_t      x=0;
-uint8_t       ledX=0;
-uint8_t       adcUpdateCnt      = 0;
-const uint8_t adcUpdateInterval = 20;
-
-// the loop function runs over and over again forever
-void loop() {
-  i++;
-  adcUpdateCnt++;
-
-  digitalWrite(LED2, reqEvnt);
-  digitalWrite(LED3, recvEvnt);
-  digitalWrite(LED4, mastersetTime);
-
-  if (purgeTXBuffer) clearTXBuffer(); 
-  if (purgeRXBuffer) clearRXBuffer();
-
-  if (adcUpdateCnt > adcUpdateInterval) {
-    long rawAdc    = 0;
-    //int acsOffset  = 514;
-    float acsmvA  = 0.136;  // 0.136v or 136mV per amp
-    float Amps    = 0.0;
-    float Volts   = 0.0;
-    float sysVcc  = 4.43;
-    float vDiv2   = 1.0;
-    float vDiv3   = 1.0;
-  
-// #ifdef MCU_NANOEVERY
-//     sysVcc        = 4.300;
-// #endif
- 
-    rawAdc = readADC(ADC0, 20);
-    rawAdc = rawAdc;
-    //rawAdc = analogRead(ADC0);
-    //rawAdc = rawAdc; // subtrack offset
-    adcDataBuffer[0].adcRaw = rawAdc;
-    Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
-    Amps =  (float)Volts / acsmvA;
-    adcDataBuffer[0].Amps  = Amps;
-    adcDataBuffer[0].Volts = Volts;
-    // Serial.print("0: ");
-    // Serial.print(Amps);
-    // Serial.print(" 1: ");
-    // Serial.print(Volts, 3);
-    // Serial.print("v Raw ");
-    // Serial.print(rawAdc);
-    // Serial.println(" ");
-
-    rawAdc = readADC(ADC1, 20);
-    // Serial.print(rawAdc);
-    // Serial.print(" <-ADC1 ADC2-> ");
-    adcDataBuffer[1].adcRaw   = rawAdc;
-    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
-    adcDataBuffer[1].Volts = Volts;
-
-    rawAdc = readADC(ADC2, 20);
-    // Serial.println(rawAdc);
-    adcDataBuffer[2].adcRaw   = rawAdc;
-    Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
-    adcDataBuffer[1].Volts = Volts;
-    adcUpdateCnt = 0;
-  }
-  
-  if (unknownCmd) {
-    unknownCmd = false;
-
-    sprintf(buff, "Command 0x%X: Not recognized\n", rxData.cmdAddr);
-    Serial.println(buff);
-  }
-
-  if (txtmsgWaiting) {            // print message sent by master
-    txtmsgWaiting = false;        // clear flag
-    sprintf(buff, "Message from master: %s", txtMessage);
-    Serial.println(buff);
-  }
-
-  if (i>1000){
-    i=0;
-    // if (timeStatus()==timeSet) {             // print timestamps once time is set
-      ledX = ledX ^ 1;              // xor previous state
-      digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
-      // Serial.printf("Timestamp: %lu\n", now());
-    // } 
-    
-    recvEvnt = false; // reset flag
-    reqEvnt  = false; // reset flag
-  }
-
-  delay(1);
 }
