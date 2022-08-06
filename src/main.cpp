@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <I2C_eeprom.h>
+#include <packmonlib.h>
+#include <time.h>
+#include <TimeLib.h>
 
-#include "time.h"
-#include "TimeLib.h"
 #include "pm_pins.h"
 #include "pm_struct.h"
 
@@ -21,8 +21,8 @@ volatile uint8_t messageLen    = 0;                      // message from master 
 volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
-#ifdef DXCORE
-#pragma message "Compiled using DxCORE!"
+#ifdef MEGACOREX
+#pragma message "Compiled using MegaCoreX!"
 #endif
 
 #ifdef I2C_SLAVE_ADDR
@@ -32,10 +32,16 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define I2C_SLAVE_ADDR 0x40
 #endif
 
-#ifdef  MCU_AVR128DA28
-#pragma message "Compiling for AVR128DA28"
+#ifdef MCU_ATMEGA328P
+#pragma message "Compiling for ATmega328P"
+#define SERIALBAUD 115200
+#elif MCU_NANOEVERY
+#pragma message "Compiling for Nano Every"
 #define SERIALBAUD 921600
-#elif   MCU_AVR128DA32
+#elif MCU_AVR128DA28
+#pragma message "Compiling for AVR128DA28"
+#define SERIALBAUD 57600
+#elif MCU_AVR128DA32
 #pragma message "Compiling for AVR128DA32"
 #define SERIALBAUD 921600
 #else
@@ -43,8 +49,60 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #pragma message "Compiling for Unknown MCU"
 #endif
 
+PackMonLib toolbox();
+
 char buff[200];
 
+// function to eventually save data to on board FRAM
+void writeFRAMuint(uint8_t myAddr, uint32_t myData) { 
+
+}
+
+void writeFRAMint(uint8_t myAddr, int32_t myData) { 
+
+}
+
+// function to read byte from FRAM
+uint8_t readFRAMbyte(uint8_t myAddr) { 
+
+}
+
+// function to read uint from FRAM
+uint32_t readFRAMuint(uint8_t myAddr) { 
+  uint32_t framData = 0;
+  if (myAddr==0x39) { // pack voltage
+    framData = adcDataBuffer[2].adcRaw;
+  } else if (myAddr==0x3E) { // bus voltage
+    framData = adcDataBuffer[1].adcRaw;
+  } else if (myAddr==0x33) { // active current
+    framData = adcDataBuffer[0].adcRaw;
+  }
+  return framData;
+}
+
+// function to read uint from FRAM (eventually)
+float readFRAMfloat(uint8_t myAddr) { 
+  float framData = 0.0;
+  if (myAddr==0x39) { // pack voltage
+    framData = adcDataBuffer[2].Volts;
+  } else if (myAddr==0x3E) { // bus voltage
+    framData = adcDataBuffer[1].Volts;
+  } else if (myAddr==0x33) { // active current
+    framData = adcDataBuffer[0].Amps;
+  }
+  return framData;
+}
+
+
+// function to read ulong from FRAM
+uint32_t readFRAMulong(uint8_t myAddr) { 
+
+}
+
+// function to read int from FRAM
+int16_t readFRAMint(uint8_t myAddr) { 
+
+}
 
 long readADC(uint8_t adcPin, uint8_t noSamples) {
   uint32_t adcResult = 0;
@@ -579,15 +637,11 @@ void receiveEvent(size_t howMany) {
   purgeRXBuffer = true; // ask main loop() to purge buffer
 }
 
-#if defined(TWI_MORS_BOTH)
-TwoWire i2c_slave(&TWI0);
-TwoWire i2c_master(&TWI1);
-#elif defined(TWI_MANDS_SINGLE)
-TwoWire i2c_slave(&TWI0);
-TwoWire i2c_master(&TWI0);
-#endif
-
 void setup() {
+  // initialize I2C pins
+  pinMode(SCL, INPUT);
+  pinMode(SDA, INPUT);
+
   // initialize LEDs outputs
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
@@ -598,37 +652,27 @@ void setup() {
   pinMode(ADC0, INPUT);
   pinMode(ADC1, INPUT);
   pinMode(ADC2, INPUT);
-  pinMode(ADC3, INPUT);
 
-  #if defined(TWI_MORS_BOTH)
-    #pragma message "TWI_MORS_BOTH is defined!"
-    i2c_master.begin();                 // i2c_master is TWI1, using pins PF2, PF3 - only option for 32 pin chip
-    i2c_master.setClock(100000);        // bus speed 100khz
-
-    // i2c_slave is TWI0, accept default pins, should be PA2, PA3
-    //i2c_slave.pins(SDA0, SCL0);         // TWI0 on pins PA2, PA3, not needed?
-    i2c_slave.begin(I2C_SLAVE_ADDR); 
-  #else 
-    // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
-    i2c_master.begin(SDA1, SCL1);       // master on alternate pins
-    i2c_master.setClock(100000);        // 100khz clock
-
-    // Setup second instance of TWO0 as slave
-    i2c_slave.pins(SDA0, SCL0);         // pins per datasheet per TWIROUTE0, TWI0[1:0]
-    i2c_slave.begin(I2C_SLAVE_ADDR);    // set slave address
-  #endif
-
-  #ifdef TWI_MANDS_SINGLE 
-    #pragma message "TWI_MANDS_SINGLE is defined!"
-  #endif
-
+  Wire.begin(I2C_SLAVE_ADDR);                // join i2c bus 
+#ifdef MCU_NANOEVERY
+  TWI0_SCTRLA |= (1<<TWI_DIEN_bp);           // manually enable data interrupt on the Every
+#endif
   delay(2000);
 
-  Serial.begin(SERIALBAUD);
+// #ifdef MCU_NANOEVERY
+//   Serial.begin(921600);
+// #elif MCU_ATMEGA328P
+//   Serial.begin(256000);
+// #endif
 
-  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
+  Serial.pins(PIN_PA0, PIN_PA1);
+  Serial.begin(SERIALBAUD); 
+
+  sprintf(buff, "\n\n!Hello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
   Serial.print(buff);
 
+  Serial.flush();
+  
   Wire.onRequest(requestEvent); // register requestEvent interrupt handler
   Wire.onReceive(receiveEvent); // register receiveEvent interrupt handler
 }
@@ -712,11 +756,11 @@ void loop() {
 
   if (i>1000){
     i=0;
-    if (timeStatus()==timeSet) {             // print timestamps once time is set
+    // if (timeStatus()==timeSet) {             // print timestamps once time is set
       ledX = ledX ^ 1;              // xor previous state
       digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
       // Serial.printf("Timestamp: %lu\n", now());
-    } 
+    // } 
     
     recvEvnt = false; // reset flag
     reqEvnt  = false; // reset flag
