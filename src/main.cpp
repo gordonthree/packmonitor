@@ -665,10 +665,11 @@ void setup() {
 //   Serial.begin(256000);
 // #endif
 
-  Serial.pins(PIN_PA0, PIN_PA1);
+  
+  //Serial.pins(PIN_PA0, PIN_PA1);
   Serial.begin(SERIALBAUD); 
 
-  sprintf(buff, "\n\n!Hello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
+  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
   Serial.print(buff);
 
   Serial.flush();
