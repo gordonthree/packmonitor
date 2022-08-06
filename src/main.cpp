@@ -40,7 +40,7 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 #define SERIALBAUD 921600
 #elif MCU_AVR128DA28
 #pragma message "Compiling for AVR128DA28"
-#define SERIALBAUD 115200
+#define SERIALBAUD 921600
 #elif MCU_AVR128DA32
 #pragma message "Compiling for AVR128DA32"
 #define SERIALBAUD 921600
@@ -171,9 +171,10 @@ void requestEvent() {
 // TwoWire i2c_master(TWI0);
 // #endif
 
-#define ser Serial1
+HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
+
 #if defined(TWI_MORS_BOTH)
-  #define i2c_master TWI1
+  HardwareI2C &i2c_master = TWI1;
 #endif
 
 void setup() {
