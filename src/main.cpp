@@ -85,8 +85,8 @@ void requestEvent() ;
 HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
 
 #if defined(MCU_AVR128DA32)
-  HardwareI2C &i2c_host = TWI1;
-  HardwareI2C &i2c_client = TWI0;
+  //HardwareI2C &i2c_host = TWI1;
+  TwoWire &i2c_host = TWI1;
 #endif
 
 void setup() {
@@ -119,12 +119,13 @@ void setup() {
 
   delay(2000);
 
-  #if defined(MCU_AVR128DA32)                       // Setup both TWO0 and TWI1
+  #if defined(MCU_AVR128DA32)                  // Setup both TWO0 and TWI1
     i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
     i2c_host.setClock(100000);                 // bus speed 100khz
-    i2c_client.begin(I2C_CLIENT_ADDR, false);  // Client on TWI0, default pins, SDA PA2, SCL PA3
+    Wire.pins(PIN_PA2, PIN_PA3);
+    Wire.begin(I2C_CLIENT_ADDR, false);        // Client on TWI0, default pins, SDA PA2, SCL PA3
     ser.printf("\n\nHello, world!\nClient address: 0x%X Using twi0 and twi1\n", I2C_CLIENT_ADDR);
-  #elif defined(MCU_AVR128DA28)                  // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+  #elif defined(MCU_AVR128DA28)                // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
     Wire.enableDualMode(false);                // enable fmp+ is false
     Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
     Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
