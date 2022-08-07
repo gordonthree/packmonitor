@@ -84,7 +84,7 @@ void requestEvent() ;
 
 HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
 
-#if defined(TWI_MORS_BOTH)
+#if defined(MORS_BOTH)
   HardwareI2C &i2c_host = TWI1;
   HardwareI2C &i2c_client = TWI0;
 #endif
@@ -114,11 +114,11 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
-  #if defined(TWI_MORS_BOTH)                   // Setup both TWO0 and TWI1
+  #if defined(MORS_BOTH)                   // Setup both TWO0 and TWI1
     i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
     i2c_host.setClock(100000);                 // bus speed 100khz
     i2c_client.begin(I2C_CLIENT_ADDR, false);  // Client on TWI0, default pins, SDA PA2, SCL PA3
-  #elif defined(TWI_MANDS_SINGLE)              // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+  #elif defined(MANDS_SINGLE)              // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
     Wire.enableDualMode(false);                // enable fmp+ is false
     Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
     Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
@@ -127,7 +127,7 @@ void setup() {
     Wire.begin(I2C_CLIENT_ADDR);               // client only for some reason
   #endif
 
-  #ifdef TWI_MANDS_SINGLE 
+  #ifdef MANDS_SINGLE 
     #pragma message "TWI_MANDS_SINGLE defined!"
   #endif
 
