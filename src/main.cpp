@@ -114,21 +114,17 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
-  #if defined(TWI_MORS_BOTH)
-    i2c_host.begin(); // i2c_Host is TWI1, using default pins PF2, PF3
-    i2c_host.setClock(100000);  // bus speed 100khz
-
-    // i2c_Client is TWI0, accept default pins, should be PA2, PA3
-    i2c_client.begin(I2C_CLIENT_ADDR, false); // Client on twi0
-  #elif defined(TWI_MANDS_SINGLE) 
-    // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
-    Wire.enableDualMode(false); // enable fmp+ is false
-    Wire.begin(); // setup host
-    Wire.begin(I2C_CLIENT_ADDR, false); // setup client with address, ignore broadcast
-    Wire.setClock(100000);
+  #if defined(TWI_MORS_BOTH)                   // Setup both TWO0 and TWI1
+    i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
+    i2c_host.setClock(100000);                 // bus speed 100khz
+    i2c_client.begin(I2C_CLIENT_ADDR, false);  // Client on TWI0, default pins, SDA PA2, SCL PA3
+  #elif defined(TWI_MANDS_SINGLE)              // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+    Wire.enableDualMode(false);                // enable fmp+ is false
+    Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
+    Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
+    Wire.setClock(100000);                     // bus speed 100khz
   #else
-    // Wire.usePullups();
-    Wire.begin(I2C_CLIENT_ADDR);
+    Wire.begin(I2C_CLIENT_ADDR);               // client only for some reason
   #endif
 
   #ifdef TWI_MANDS_SINGLE 
@@ -664,7 +660,10 @@ void receiveEvent(size_t howMany) {
     case 0x60: // set time from Host, char string
       {
         // ser.println((char) rxData.cmdData);
-        _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
+        union ulongArray buffer;
+        strncpy(buffer.byteArray, rxData.cmdData, 4);
+        _isr_timeStamp = buffer.longNumber;
+        // _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
         if (_isr_timeStamp>1000000000) {
           setTime(_isr_timeStamp);                            // fingers crossed
           HostsetTime = true;                               // set flag
@@ -686,9 +685,11 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x62: // read current timestamp, ulong
       {
-        _isr_HostUlong = now();
-        ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
-        txData.dataLen = 11;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = now();
+        //ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        strncpy((char) txData.cmdData, (char) buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
