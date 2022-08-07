@@ -8,50 +8,36 @@
 #include "pm_struct.h"
 
 volatile bool unknownCmd       = false;                  // flag indicating unknown command received
-volatile bool txtmsgWaiting    = false;                  // flag indicating message from master is waiting
+volatile bool txtmsgWaiting    = false;                  // flag indicating message from Host is waiting
 volatile bool reqEvnt          = false;                  // flag set when the requestEvent ISR fires
 volatile bool recvEvnt         = false;                  // flag set when the receiveEvent ISR fires
-volatile bool mastersetTime    = false;                  // flag that is set when master has sent time
-volatile bool txdataReady      = false;                  // flag that is set when data is ready to send to master
+volatile bool HostsetTime    = false;                  // flag that is set when Host has sent time
+volatile bool txdataReady      = false;                  // flag that is set when data is ready to send to Host
 volatile bool purgeTXBuffer    = true;                   // tell loop() to clear the TX buffer
 volatile bool purgeRXBuffer    = true;                   // tell loop() to clear the RX buffer
-volatile char txtMessage[50];                            // alternate buffer for message from master
+volatile char txtMessage[50];                            // alternate buffer for message from Host
 
-volatile uint8_t messageLen    = 0;                      // message from master length
-volatile time_t lasttimeSync   = 0;                      // when's the last time master sent us time?
+volatile uint8_t messageLen    = 0;                      // message from Host length
+volatile time_t lasttimeSync   = 0;                      // when's the last time Host sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
 #ifdef MEGACOREX
 #pragma message "Compiled using MegaCoreX!"
 #endif
 
-#ifdef I2C_SLAVE_ADDR
-#pragma message "Slave address found in build flag"
+#ifdef PM_CLIENT_ADDRESS
+#pragma message "Client address found in build flag"
 #else
-#pragma message "Slave address NOT FOUND in build flag, defaulting to 0x40"
-#define I2C_SLAVE_ADDR 0x40
-#endif
-
-#ifdef MCU_ATMEGA328P
-#pragma message "Compiling for ATmega328P"
-#define SERIALBAUD 115200
-#elif MCU_NANOEVERY
-#pragma message "Compiling for Nano Every"
-#define SERIALBAUD 921600
-#elif MCU_AVR128DA28
-#pragma message "Compiling for AVR128DA28"
-#define SERIALBAUD 921600
-#elif MCU_AVR128DA32
-#pragma message "Compiling for AVR128DA32"
-#define SERIALBAUD 921600
-#else
-#define SERIALBAUD 115200
-#pragma message "Compiling for Unknown MCU"
+#pragma message "Client address NOT FOUND in build flag, will check PF0 PF1 bits"
+//#define I2C_Client_ADDR 0x34
 #endif
 
 PackMonLib toolbox();
 
 char buff[200];
+int I2C_CLIENT_ADDR = 0x34;       // base address, modified by pins PF0 / PF2
+
+void scanI2C(void);
 
 void receiveEvent(size_t howMany);
 
@@ -70,30 +56,10 @@ uint8_t readFRAMbyte(uint8_t myAddr) {
 }
 
 // function to read uint from FRAM
-uint32_t readFRAMuint(uint8_t myAddr) { 
-  uint32_t framData = 0;
-  if (myAddr==0x39) { // pack voltage
-    framData = adcDataBuffer[2].adcRaw;
-  } else if (myAddr==0x3E) { // bus voltage
-    framData = adcDataBuffer[1].adcRaw;
-  } else if (myAddr==0x33) { // active current
-    framData = adcDataBuffer[0].adcRaw;
-  }
-  return framData;
-}
+uint32_t readFRAMuint(uint8_t myAddr);
 
 // function to read uint from FRAM (eventually)
-float readFRAMfloat(uint8_t myAddr) { 
-  float framData = 0.0;
-  if (myAddr==0x39) { // pack voltage
-    framData = adcDataBuffer[2].Volts;
-  } else if (myAddr==0x3E) { // bus voltage
-    framData = adcDataBuffer[1].Volts;
-  } else if (myAddr==0x33) { // active current
-    framData = adcDataBuffer[0].Amps;
-  }
-  return framData;
-}
+float readFRAMfloat(uint8_t myAddr);
 
 
 // function to read ulong from FRAM
@@ -106,78 +72,36 @@ int16_t readFRAMint(uint8_t myAddr) {
 
 }
 
-long readADC(uint8_t adcPin, uint8_t noSamples) {
-  uint32_t adcResult = 0;
-  int      sample    = 0;
-  uint8_t  adcX      = 0;
-// #ifdef MCU_NANOEVERY
-//   analogReference(INTERNAL4V3);  // enable interal 4.3v reference on the Every
-// #endif
+long readADC(uint8_t adcPin, uint8_t noSamples);
 
-  for (int x=0; x < noSamples; x++) {
-    sample = analogRead(adcPin);                    // sample adc pin
-    adcResult = adcResult + sample;                 // add sample for averaging
-    delayMicroseconds(250);
-  }
-  
-  adcResult = adcResult / noSamples;
-  
-  return (long) adcResult;
-}
+void clearTXBuffer();
 
-void clearTXBuffer() {
-  uint16_t myPtr = 0;
-  while (myPtr < txBufferSize) {
-    txData.cmdData[myPtr] = '\0';
-    myPtr++;
-  }
-  purgeTXBuffer = false;
-}
+void clearRXBuffer();
 
-void clearRXBuffer() {
-  uint16_t myPtr = 0;
-  rxData.cmdAddr = 0;
-  while (myPtr < rxBufferSize) {
-    rxData.cmdData[myPtr] = '\0';
-    myPtr++;
-  }
-  purgeTXBuffer = false;
-}
-
-// function that executes whenever data is requested by master
+// function that executes whenever data is requested by Host
 // this function is registered as an event, see setup()
-void requestEvent() {   
-  char reqBuff[80];                          // master has requested data
-  if (txdataReady) {
-    Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, master will read as many bytes as it wants
-    txdataReady = false;                          // clear tx flag
-    // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
-    // ser.println(reqBuff);
-  } else {
-    sprintf((char) txData.cmdData,"Slave 0x%X ready!", I2C_SLAVE_ADDR);
-    Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
-    // ser.println((char) txData.cmdData);
-  }
-  reqEvnt = true;                                 // set flag that we had this interaction
-  purgeTXBuffer=true;                                // purge TX buffer
-}
-
-
-// #if defined(TWI_MORS_BOTH)
-// TwoWire i2c_slave(TWI0);
-// TwoWire i2c_master(TWI1);
-// #elif defined(TWI_MANDS_SINGLE)
-// TwoWire i2c_slave(TWI0);
-// TwoWire i2c_master(TWI0);
-// #endif
+void requestEvent() ;
 
 HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
 
 #if defined(TWI_MORS_BOTH)
-  HardwareI2C &i2c_master = TWI1;
+  HardwareI2C &i2c_host = TWI1;
+  HardwareI2C &i2c_client = TWI0;
 #endif
 
 void setup() {
+  pinMode(PIN_PF0, INPUT_PULLUP); // pins for client address configuration
+  pinMode(PIN_PF1, INPUT_PULLUP);
+
+  bool addr0 = digitalRead(PIN_PF0); // see what our hardwired address is
+  bool addr1 = digitalRead(PIN_PF1);
+
+  #ifndef PM_CLIENT_ADDRESS
+  I2C_CLIENT_ADDR |= (addr0 | (addr1<<1)); // compute address
+  #else
+  I2C_CLIENT_ADDR = PM_CLIENT_ADDRESS;     // use what was sent during compile
+  #endif
+
   // initialize LEDs outputs
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
@@ -191,28 +115,20 @@ void setup() {
   pinMode(ADC3, INPUT);
 
   #if defined(TWI_MORS_BOTH)
-    i2c_master.begin(); // i2c_master is TWI1, using default pins PF2, PF3
-    i2c_master.usePullups();
-    i2c_master.setClock(100000);  // bus speed 100khz
+    i2c_host.begin(); // i2c_Host is TWI1, using default pins PF2, PF3
+    i2c_host.setClock(100000);  // bus speed 100khz
 
-    // i2c_slave is TWI0, accept default pins, should be PA2, PA3
-    Wire.begin(I2C_SLAVE_ADDR); 
+    // i2c_Client is TWI0, accept default pins, should be PA2, PA3
+    i2c_client.begin(I2C_CLIENT_ADDR, false); // Client on twi0
   #elif defined(TWI_MANDS_SINGLE) 
     // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
-    Wire.enableDualMode(true);
-    Wire.usePullups();
-    Wire.begin();
-    Wire.begin(I2C_SLAVE_ADDR);
+    Wire.enableDualMode(false); // enable fmp+ is false
+    Wire.begin(); // setup host
+    Wire.begin(I2C_CLIENT_ADDR, false); // setup client with address, ignore broadcast
     Wire.setClock(100000);
-    // i2c_master.begin(SDA1,SCL1); // master on secondary pins (twi1 for the 32 pin chip)
-    // i2c_master.setClock(100000); // 100khz clock
-
-    // i2c_slave.pins(SDA0, SCL0); // slave on default pins per datasheet per TWIROUTE0, TWI0[1:0]
-    // i2c_slave.begin(I2C_SLAVE_ADDR); // slave on twi0
-// i2c_slave.begin(PIN_PC2, PIN_PC3, I2C_SLAVE_ADDR); // slave on twi0
   #else
-    Wire.usePullups();
-    Wire.begin(I2C_SLAVE_ADDR);
+    // Wire.usePullups();
+    Wire.begin(I2C_CLIENT_ADDR);
   #endif
 
   #ifdef TWI_MANDS_SINGLE 
@@ -221,21 +137,17 @@ void setup() {
 
   delay(2000);
 
-// #ifdef MCU_NANOEVERY
-//   ser.begin(921600);
-// #elif MCU_ATMEGA328P
-//   ser.begin(256000);
-// #endif
-
-  
   //ser.pins(PIN_PA0, PIN_PA1);
-  ser.begin(SERIALBAUD); 
+  ser.begin(115200); 
 
-  sprintf(buff, "\n\nHello, world!\nSlave address: 0x%X\n", I2C_SLAVE_ADDR);
+  sprintf(buff, "\n\nHello, world!\nClient address: 0x%X\nDUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
   ser.print(buff);
 
+
   ser.flush();
-  
+
+  scanI2C();  // scan bus?!
+
   Wire.onRequest(requestEvent); // register requestEvent interrupt handler
   Wire.onReceive(receiveEvent); // register receiveEvent interrupt handler
 }
@@ -253,7 +165,7 @@ void loop() {
 
   digitalWrite(LED2, reqEvnt);
   digitalWrite(LED3, recvEvnt);
-  digitalWrite(LED4, mastersetTime);
+  digitalWrite(LED4, HostsetTime);
 
   if (purgeTXBuffer) clearTXBuffer(); 
   if (purgeRXBuffer) clearRXBuffer();
@@ -311,9 +223,9 @@ void loop() {
     ser.println(buff);
   }
 
-  if (txtmsgWaiting) {            // print message sent by master
+  if (txtmsgWaiting) {            // print message sent by Host
     txtmsgWaiting = false;        // clear flag
-    sprintf(buff, "Message from master: %s", txtMessage);
+    sprintf(buff, "Message from Host: %s", txtMessage);
     ser.println(buff);
   }
 
@@ -332,14 +244,14 @@ void loop() {
   delay(1);
 }
 
-// function that executes whenever data is received from master
+// function that executes whenever data is received from Host
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
-  uint8_t   _isr_masterByte  = 0;
-  uint16_t  _isr_masterUint  = 0;
-  int16_t   _isr_masterInt   = 0;
-  uint32_t  _isr_masterUlong = 0;
-  int32_t   _isr_masterLong  = 0;
+  uint8_t   _isr_HostByte  = 0;
+  uint16_t  _isr_HostUint  = 0;
+  int16_t   _isr_HostInt   = 0;
+  uint32_t  _isr_HostUlong = 0;
+  int32_t   _isr_HostLong  = 0;
   uint32_t  _isr_timeStamp   = 0;
 
 
@@ -362,88 +274,88 @@ void receiveEvent(size_t howMany) {
       ser.println("Address probe detected.");    
     case 0x21: // high current limit, unsigned int
       {
-        _isr_masterUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
+        _isr_HostUint = atol(rxData.cmdData);
+        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
       }
       break;
     case 0x22: // high-temp limit, unsigned int
       {
-        _isr_masterUint = atol(rxData.cmdData);
-         writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
+        _isr_HostUint = atol(rxData.cmdData);
+         writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
       }
       break;
     case 0x23: // low-temp limit, signed int
       {
-        _isr_masterInt = atoi(rxData.cmdData);
-        writeFRAMint(rxData.cmdAddr, _isr_masterInt);
+        _isr_HostInt = atoi(rxData.cmdData);
+        writeFRAMint(rxData.cmdAddr, _isr_HostInt);
       }
       break;
     case 0x24: // high-voltage limit, unsigned int
       {
-        _isr_masterUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
+        _isr_HostUint = atol(rxData.cmdData);
+        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
       }
       break;
     case 0x25: // low-voltage limit, unsigned int
       {
-        _isr_masterUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_masterUint);
+        _isr_HostUint = atol(rxData.cmdData);
+        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
       }
       break;
     case 0x26: // set config0, byte
       {
-        _isr_masterByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
+        _isr_HostByte = rxData.cmdData[0];
+        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
       }
       break;
     case 0x27: // set config1, byte
       {
-        _isr_masterByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
+        _isr_HostByte = rxData.cmdData[0];
+        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
       }
       break;
     case 0x28: // set config2, byte
       {
-        _isr_masterByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_masterByte);
+        _isr_HostByte = rxData.cmdData[0];
+        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
       }
       break;
     case 0x29: // read config0, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x2A: // read config1, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x2B: // read config2, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x2C: // read status1, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x2D: // read status2, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -465,8 +377,8 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x31: // read coulomb counter, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -479,8 +391,8 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x33: // read instant amps, signed int
       {
-        //_isr_masterInt = readFRAMint(rxData.cmdAddr);
-        //ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        //_isr_HostInt = readFRAMint(rxData.cmdAddr);
+        //ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         float framData = readFRAMfloat(rxData.cmdAddr);
         dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
@@ -489,32 +401,32 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x34: // read total amps in counter, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x35: // read total amps out counter, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x36: // read lifetime amps in, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x37: // read lifetime amps out, ubsigned long 
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -529,8 +441,8 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x39: // read pack voltage, char* array
       {
-        // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        // _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        // ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         float framData = readFRAMfloat(rxData.cmdAddr);
         dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
@@ -539,40 +451,40 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x3A: // read lowest voltage memory, unsigned int
       {
-        _isr_masterUint = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x3B: // read lowest voltage timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x3C: // read highest voltage memory, unsigned int
       {
-        _isr_masterUint = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x3D: // read highest voltage timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x3E: // read bus voltage, char* array
       {
-        // _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        // ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        // _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        // ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         float framData = readFRAMfloat(rxData.cmdAddr);
         dtostrf(framData, 3, 2, txData.cmdData);
         txData.dataLen = 6;                                 // number of bytes to transmit
@@ -580,7 +492,7 @@ void receiveEvent(size_t howMany) {
       }
       break;
 
-    case 0x3F: // print diag message from master
+    case 0x3F: // print diag message from Host
       { 
         strncpy(txtMessage, rxData.cmdData, rxData.dataLen); // copy message into another buffer
         // messageLen = rxData.dataLen; // copy message length too
@@ -602,80 +514,80 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x41: // read t0 instant, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x42: // read t0 lowest, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x43: // read t0 highest, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x44: // read t1 instant, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x45: // read t1 lowest, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x46: // read t1 highest, signed int
       {
-        _isr_masterInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_masterInt, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostInt = readFRAMint(rxData.cmdAddr);
+        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x47: // read t0 lowest timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x48: // read t0 highest timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x49: // read t1 lowest timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x4A: // read t1 highest timestamp, unsigned long
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
@@ -695,67 +607,67 @@ void receiveEvent(size_t howMany) {
     
     case 0x51: // read total over-current disconnects, unsigned int
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x52: // read total under-voltage discon, unsigned int
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x53: // read total over-volt discon, uint
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x54: // read total under-temp discon, uint
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 6;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x55: // read total over-temp discon, uint
       {
-        _isr_masterUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_masterUint, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
+        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x56: // read last discon timestamp, ulong
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);           // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x57: // read last discon reason code, byte
       {
-        _isr_masterByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_masterByte;                // store byte in outgoing buffer
+        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
-    case 0x60: // set time from master, char string
+    case 0x60: // set time from Host, char string
       {
         // ser.println((char) rxData.cmdData);
         _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
         if (_isr_timeStamp>1000000000) {
           setTime(_isr_timeStamp);                            // fingers crossed
-          mastersetTime = true;                               // set flag
+          HostsetTime = true;                               // set flag
           lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
           if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
           // sprintf(buff, "Timestamp %lu", _isr_timeStamp);
@@ -766,32 +678,32 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x61: // read first-init timestamp, ulong
       {
-        _isr_masterUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_masterUlong, txData.cmdData, 10);         // store data as char string in tx buffer
+        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
+        ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x62: // read current timestamp, ulong
       {
-        _isr_masterUlong = now();
-        ltoa(_isr_masterUlong, txData.cmdData, 10);         // store data as char string in tx buffer
+        _isr_HostUlong = now();
+        ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
         txData.dataLen = 11;                                 // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x63: // read time since last sync
       {
-        _isr_masterUlong = now();                           // read current time from time libvrary
-        _isr_timeStamp = _isr_masterUlong - lasttimeSync;   // subtract last sync timestamp from current timestamp
+        _isr_HostUlong = now();                           // read current time from time libvrary
+        _isr_timeStamp = _isr_HostUlong - lasttimeSync;   // subtract last sync timestamp from current timestamp
         ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
       }
     case 0x64: // read time since last sync
       {
-        _isr_masterUlong = now();                           // read current time from time libvrary
-        _isr_timeStamp = _isr_masterUlong - firsttimeSync;  // subtract last sync timestamp from current timestamp
+        _isr_HostUlong = now();                           // read current time from time libvrary
+        _isr_timeStamp = _isr_HostUlong - firsttimeSync;  // subtract last sync timestamp from current timestamp
         ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
         txData.dataLen = 11;                                // number of bytes to transmit
         txdataReady = true;                                 // set flag we are ready to send data
@@ -807,4 +719,117 @@ void receiveEvent(size_t howMany) {
   // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
   // ser.println(buff);
   purgeRXBuffer = true; // ask main loop() to purge buffer
+}
+
+void scanI2C() {
+  byte error, address;
+  int nDevices;
+
+  ser.println("Scanning...");
+
+  nDevices = 0;
+  for(address = 1; address < 127; address++ ) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0)
+    {
+      ser.print("I2C device found at address 0x");
+      if (address<16) 
+      ser.print("0");
+      ser.print(address, HEX);
+      ser.println(" !");
+
+      nDevices++;
+    }
+     else if (error==4) 
+    {
+      ser.print("Unknow error at address 0x");
+      if (address<16) 
+      ser.print("0");
+      ser.println(address, HEX);
+    } 
+  }
+  
+  if (nDevices == 0)
+    ser.println("No I2C devices found");
+  else
+    ser.println("done.");
+ 
+}
+
+uint32_t readFRAMuint(uint8_t myAddr) { 
+  uint32_t framData = 0;
+  if (myAddr==0x39) { // pack voltage
+    framData = adcDataBuffer[2].adcRaw;
+  } else if (myAddr==0x3E) { // bus voltage
+    framData = adcDataBuffer[1].adcRaw;
+  } else if (myAddr==0x33) { // active current
+    framData = adcDataBuffer[0].adcRaw;
+  }
+  return framData;
+}
+
+// function to read uint from FRAM (eventually)
+float readFRAMfloat(uint8_t myAddr) { 
+  float framData = 0.0;
+  if (myAddr==0x39) { // pack voltage
+    framData = adcDataBuffer[2].Volts;
+  } else if (myAddr==0x3E) { // bus voltage
+    framData = adcDataBuffer[1].Volts;
+  } else if (myAddr==0x33) { // active current
+    framData = adcDataBuffer[0].Amps;
+  }
+  return framData;
+}
+long readADC(uint8_t adcPin, uint8_t noSamples) {
+  uint32_t adcResult = 0;
+  int      sample    = 0;
+  uint8_t  adcX      = 0;
+
+  for (int x=0; x < noSamples; x++) {
+    sample = analogRead(adcPin);                    // sample adc pin
+    adcResult = adcResult + sample;                 // add sample for averaging
+    delayMicroseconds(250);
+  }
+  
+  adcResult = adcResult / noSamples;
+  
+  return (long) adcResult;
+}
+
+// function that executes whenever data is requested by Host
+// this function is registered as an event, see setup()
+void requestEvent() {   
+  char reqBuff[80];                          // Host has requested data
+  if (txdataReady) {
+    Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, Host will read as many bytes as it wants
+    txdataReady = false;                          // clear tx flag
+    // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
+    // ser.println(reqBuff);
+  } else {
+    sprintf((char) txData.cmdData,"Client 0x%X ready!", I2C_CLIENT_ADDR);
+    Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
+    // ser.println((char) txData.cmdData);
+  }
+  reqEvnt = true;                                 // set flag that we had this interaction
+  purgeTXBuffer=true;                                // purge TX buffer
+}
+void clearTXBuffer() {
+  uint16_t myPtr = 0;
+  while (myPtr < txBufferSize) {
+    txData.cmdData[myPtr] = '\0';
+    myPtr++;
+  }
+  purgeTXBuffer = false;
+}
+
+void clearRXBuffer() {
+  uint16_t myPtr = 0;
+  rxData.cmdAddr = 0;
+  while (myPtr < rxBufferSize) {
+    rxData.cmdData[myPtr] = '\0';
+    myPtr++;
+  }
+  purgeTXBuffer = false;
 }
