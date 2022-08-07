@@ -84,7 +84,7 @@ void requestEvent() ;
 
 HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
 
-#if defined(MORS_BOTH)
+#if defined(MCU_AVR128DA32)
   HardwareI2C &i2c_host = TWI1;
   HardwareI2C &i2c_client = TWI0;
 #endif
@@ -92,6 +92,7 @@ HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
 void setup() {
   pinMode(PIN_PF0, INPUT_PULLUP); // pins for client address configuration
   pinMode(PIN_PF1, INPUT_PULLUP);
+
 
   bool addr0 = digitalRead(PIN_PF0); // see what our hardwired address is
   bool addr1 = digitalRead(PIN_PF1);
@@ -114,31 +115,27 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
-  #if defined(MORS_BOTH)                       // Setup both TWO0 and TWI1
+  ser.begin(115200); 
+
+  delay(2000);
+
+  #if defined(MCU_AVR128DA32)                       // Setup both TWO0 and TWI1
     i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
     i2c_host.setClock(100000);                 // bus speed 100khz
     i2c_client.begin(I2C_CLIENT_ADDR, false);  // Client on TWI0, default pins, SDA PA2, SCL PA3
-  #elif defined(MANDS_SINGLE)                  // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
+    ser.printf("\n\nHello, world!\nClient address: 0x%X Using twi0 and twi1\n", I2C_CLIENT_ADDR);
+  #elif defined(MCU_AVR128DA28)                  // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
     Wire.enableDualMode(false);                // enable fmp+ is false
     Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
     Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
     Wire.setClock(100000);                     // bus speed 100khz
+    ser.printf("\n\nHello, world!\nClient address: 0x%X DUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
   #else
     Wire.begin(I2C_CLIENT_ADDR);               // client only for some reason
-  #endif
-
-  #ifdef MANDS_SINGLE 
-    #pragma message "MANDS_SINGLE defined!"
+    ser.printf("\n\nHello, world!\nClient address: 0x%X Client-only mode\n", I2C_CLIENT_ADDR);
   #endif
 
   delay(2000);
-
-  //ser.pins(PIN_PA0, PIN_PA1);
-  ser.begin(115200); 
-
-  sprintf(buff, "\n\nHello, world!\nClient address: 0x%X\nDUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
-  ser.print(buff);
-
 
   ser.flush();
 
