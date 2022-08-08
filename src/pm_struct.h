@@ -24,6 +24,11 @@ struct ADC_DATA {
   double  Volts    = 0.0;               // formatted value
 };
 
+struct DEBUG_MSGS {
+  uint8_t messageNo;
+  char    messageTxt[50];
+}
+
 union ulongArray
 {
     uint32_t longNumber=0;
