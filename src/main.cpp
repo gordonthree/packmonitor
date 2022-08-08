@@ -21,8 +21,13 @@ volatile uint8_t messageLen    = 0;                      // message from Host le
 volatile time_t lasttimeSync   = 0;                      // when's the last time Host sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
+volatile DEBUG_MSGS[10];                                 // room for 
 #ifdef MEGACOREX
 #pragma message "Compiled using MegaCoreX!"
+#endif
+
+#ifdef TWI_MANDS
+#pragma message "Flag TWI_MANDS has been set"
 #endif
 
 #ifdef PM_CLIENT_ADDRESS
@@ -82,8 +87,6 @@ void clearRXBuffer();
 // this function is registered as an event, see setup()
 void requestEvent() ;
 
-HardwareSerial &ser = Serial1;  // setup ser to point to serial1 uart
-
 #if defined(MCU_AVR128DA32)
   //HardwareI2C &i2c_host = TWI1;
   TwoWire &i2c_host = TWI1;
@@ -115,7 +118,7 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
-  ser.begin(115200); 
+  Serial1.begin(115200); 
 
   delay(2000);
 
@@ -124,21 +127,21 @@ void setup() {
     i2c_host.setClock(100000);                 // bus speed 100khz
     Wire.pins(PIN_PA2, PIN_PA3);
     Wire.begin(I2C_CLIENT_ADDR, false);        // Client on TWI0, default pins, SDA PA2, SCL PA3
-    ser.printf("\n\nHello, world!\nClient address: 0x%X Using twi0 and twi1\n", I2C_CLIENT_ADDR);
+    Serial1.printf("\n\nHello, world!\nClient address: 0x%X Using twi0 and twi1\n", I2C_CLIENT_ADDR);
   #elif defined(MCU_AVR128DA28)                // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
     Wire.enableDualMode(false);                // enable fmp+ is false
     Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
     Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
     Wire.setClock(100000);                     // bus speed 100khz
-    ser.printf("\n\nHello, world!\nClient address: 0x%X DUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
+    Serial1.printf("\n\nHello, world!\nClient address: 0x%X DUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
   #else
     Wire.begin(I2C_CLIENT_ADDR);               // client only for some reason
-    ser.printf("\n\nHello, world!\nClient address: 0x%X Client-only mode\n", I2C_CLIENT_ADDR);
+    Serial1.printf("\n\nHello, world!\nClient address: 0x%X Client-only mode\n", I2C_CLIENT_ADDR);
   #endif
 
   delay(2000);
 
-  ser.flush();
+  Serial1.flush();
 
   scanI2C();  // scan bus?!
 
@@ -187,23 +190,23 @@ void loop() {
     Amps =  (float)Volts / acsmvA;
     adcDataBuffer[0].Amps  = Amps;
     adcDataBuffer[0].Volts = Volts;
-    // ser.print("0: ");
-    // ser.print(Amps);
-    // ser.print(" 1: ");
-    // ser.print(Volts, 3);
-    // ser.print("v Raw ");
-    // ser.print(rawAdc);
-    // ser.println(" ");
+    // Serial1.print("0: ");
+    // Serial1.print(Amps);
+    // Serial1.print(" 1: ");
+    // Serial1.print(Volts, 3);
+    // Serial1.print("v Raw ");
+    // Serial1.print(rawAdc);
+    // Serial1.println(" ");
 
     rawAdc = readADC(ADC1, 20);
-    // ser.print(rawAdc);
-    // ser.print(" <-ADC1 ADC2-> ");
+    // Serial1.print(rawAdc);
+    // Serial1.print(" <-ADC1 ADC2-> ");
     adcDataBuffer[1].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
     adcDataBuffer[1].Volts = Volts;
 
     rawAdc = readADC(ADC2, 20);
-    // ser.println(rawAdc);
+    // Serial1.println(rawAdc);
     adcDataBuffer[2].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
     adcDataBuffer[1].Volts = Volts;
@@ -214,13 +217,13 @@ void loop() {
     unknownCmd = false;
 
     sprintf(buff, "Command 0x%X: Not recognized\n", rxData.cmdAddr);
-    ser.println(buff);
+    Serial1.println(buff);
   }
 
   if (txtmsgWaiting) {            // print message sent by Host
     txtmsgWaiting = false;        // clear flag
     sprintf(buff, "Message from Host: %s", txtMessage);
-    ser.println(buff);
+    Serial1.println(buff);
   }
 
   if (i>1000){
@@ -228,7 +231,7 @@ void loop() {
     // if (timeStatus()==timeSet) {             // print timestamps once time is set
       ledX = ledX ^ 1;              // xor previous state
       digitalWrite(LED1, ledX);     // turn the LED on (HIGH is the voltage level)
-      // ser.printf("Timestamp: %lu\n", now());
+      // Serial1.printf("Timestamp: %lu\n", now());
     // } 
     
     recvEvnt = false; // reset flag
@@ -251,21 +254,22 @@ void receiveEvent(size_t howMany) {
 
   Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
   rxData.dataLen = howMany - 1;                                    // save the data length for future use
-  // sprintf(buff, "RX cmd 0x%X plus %u data bytes\n", rxData.cmdAddr, rxData.dataLen);
-  // ser.print(buff);
+
+  sprintf(buff, "RX cmd 0x%X plus %u data bytes\n", rxData.cmdAddr, rxData.dataLen);
+  Serial1.print(buff);
   
   rxData.cmdData[howMany] = '\0'; // set the Nth byte as a null
   // for (int xx = 0; xx<howMany; xx++) {
-  //   ser.print(rxData.cmdData[xx]);
+  //   Serial1.print(rxData.cmdData[xx]);
   // }
-  // ser.println(" ");
+  // Serial1.println(" ");
 
   recvEvnt = true;                                                 // set event flag
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
   
   switch  (_isr_cmdAddr) {
     case 0x00: // no command received
-      ser.println("Address probe detected.");    
+      Serial1.println("Address probe detected.");    
     case 0x21: // high current limit, unsigned int
       {
         _isr_HostUint = atol(rxData.cmdData);
@@ -657,10 +661,15 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x60: // set time from Host, char string
       {
-        // ser.println((char) rxData.cmdData);
-        union ulongArray buffer;
-        strncpy(buffer.byteArray, rxData.cmdData, 4);
-        _isr_timeStamp = buffer.longNumber;
+        // Serial1.println((char) rxData.cmdData);
+        for (int ptr=0; ptr < 4; ptr++){
+          sprintf(buff, "rxdata.cmdData[%u] = 0x%X\n", ptr, rxData.cmdData[ptr]);
+          Serial1.print(buff);
+        }
+        //union ulongArray buffer;
+
+        //strncpy(buffer.byteArray, rxData.cmdData, 4);
+        //_isr_timeStamp = buffer.longNumber;
         // _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
         if (_isr_timeStamp>1000000000) {
           setTime(_isr_timeStamp);                            // fingers crossed
@@ -668,9 +677,9 @@ void receiveEvent(size_t howMany) {
           lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
           if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
           // sprintf(buff, "Timestamp %lu", _isr_timeStamp);
-          // ser.println(buff);
+          // Serial1.println(buff);
         } 
-        // else ser.println("Error receiving timestamp!");
+        // else Serial1.println("Error receiving timestamp!");
       }
       break;
     case 0x61: // read first-init timestamp, ulong
@@ -716,7 +725,7 @@ void receiveEvent(size_t howMany) {
       break;
   } // end switch
   // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
-  // ser.println(buff);
+  // Serial1.println(buff);
   purgeRXBuffer = true; // ask main loop() to purge buffer
 }
 
@@ -724,7 +733,7 @@ void scanI2C() {
   byte error, address;
   int nDevices;
 
-  ser.println("Scanning...");
+  Serial1.println("Scanning...");
 
   nDevices = 0;
   for(address = 1; address < 127; address++ ) {
@@ -733,27 +742,27 @@ void scanI2C() {
 
     if (error == 0)
     {
-      ser.print("I2C device found at address 0x");
+      Serial1.print("I2C device found at address 0x");
       if (address<16) 
-      ser.print("0");
-      ser.print(address, HEX);
-      ser.println(" !");
+      Serial1.print("0");
+      Serial1.print(address, HEX);
+      Serial1.println(" !");
 
       nDevices++;
     }
      else if (error==4) 
     {
-      ser.print("Unknow error at address 0x");
+      Serial1.print("Unknow error at address 0x");
       if (address<16) 
-      ser.print("0");
-      ser.println(address, HEX);
+      Serial1.print("0");
+      Serial1.println(address, HEX);
     } 
   }
   
   if (nDevices == 0)
-    ser.println("No I2C devices found");
+    Serial1.println("No I2C devices found");
   else
-    ser.println("done.");
+    Serial1.println("done.");
  
 }
 
@@ -805,11 +814,11 @@ void requestEvent() {
     Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, Host will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
     // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
-    // ser.println(reqBuff);
+    // Serial1.println(reqBuff);
   } else {
     sprintf((char) txData.cmdData,"Client 0x%X ready!", I2C_CLIENT_ADDR);
     Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
-    // ser.println((char) txData.cmdData);
+    // Serial1.println((char) txData.cmdData);
   }
   reqEvnt = true;                                 // set flag that we had this interaction
   purgeTXBuffer=true;                                // purge TX buffer
