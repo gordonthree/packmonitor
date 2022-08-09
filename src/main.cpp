@@ -3,6 +3,8 @@
 #include <packmonlib.h>
 #include <time.h>
 #include <TimeLib.h>
+#include <I2C_eeprom.h>
+#include <NAU7802.h>
 
 #include "pm_pins.h"
 #include "pm_struct.h"
@@ -892,4 +894,32 @@ void clearRXBuffer() {
     myPtr++;
   }
   purgeRXBuffer = false;
+}
+
+void framWriteFloat(int dataAddress, float framData) {
+  const uint16_t dataLen = 4;
+  union floatArray buffer;
+  buffer.floatNumber = framData;                               // convert float into byte array 
+  fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
+}
+
+void framWriteUlong(int dataAddress, uint32_t framData) {
+  const uint16_t dataLen = 4;
+  union ulongArray buffer;
+  buffer.longNumber = framData;                               // convert float into byte array 
+  fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
+}
+
+float framReadFloat(int dataAddress) {
+  const uint16_t dataLen = 4;
+  union floatArray buffer;
+  fram.readBlock(dataAddress, buffer.byteArray, dataLen);
+  return buffer.floatNumber;
+}
+
+uint32_t framReadUlong(int dataAddress) {
+  const uint16_t dataLen = 4;
+  union ulongArray buffer;
+  fram.readBlock(dataAddress, buffer.byteArray, dataLen);
+  return buffer.longNumber;
 }
