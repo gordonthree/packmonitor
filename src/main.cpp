@@ -21,7 +21,14 @@ volatile uint8_t messageLen    = 0;                      // message from Host le
 volatile time_t lasttimeSync   = 0;                      // when's the last time Host sent us time?
 volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
 
-volatile DEBUG_MSGS[10];                                 // room for 
+volatile DEBUG_MSGS dbgMsgs[10];                         // room for messages from inside isr to be printed outside
+volatile uint8_t    dbgMsgCnt  = 0;
+
+volatile I2C_RX_DATA rxData;
+volatile I2C_TX_DATA txData;
+volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
+
+
 #ifdef MEGACOREX
 #pragma message "Compiled using MegaCoreX!"
 #endif
@@ -121,22 +128,23 @@ void setup() {
   Serial1.begin(115200); 
 
   delay(2000);
+  Serial1.println("\n\nHello, world!");
 
   #if defined(MCU_AVR128DA32)                  // Setup both TWO0 and TWI1
     i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
     i2c_host.setClock(100000);                 // bus speed 100khz
     Wire.pins(PIN_PA2, PIN_PA3);
     Wire.begin(I2C_CLIENT_ADDR, false);        // Client on TWI0, default pins, SDA PA2, SCL PA3
-    Serial1.printf("\n\nHello, world!\nClient address: 0x%X Using twi0 and twi1\n", I2C_CLIENT_ADDR);
+    Serial1.printf("Client address: 0x%X\nUsing twi0 and twi1\n", I2C_CLIENT_ADDR);
   #elif defined(MCU_AVR128DA28)                // Setup TWI0 for dual mode ... TWI_MANDS_SINGLE
     Wire.enableDualMode(false);                // enable fmp+ is false
     Wire.begin();                              // setup host default pins SDA PA2, SCL PA3
     Wire.begin(I2C_CLIENT_ADDR, false);        // setup client with address, ignore broadcast, default pins SDA PC2, SCL PC3
     Wire.setClock(100000);                     // bus speed 100khz
-    Serial1.printf("\n\nHello, world!\nClient address: 0x%X DUALCTRL: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
+    Serial1.printf("Client address: 0x%X\nDUALCTRL register: 0x%X\n", I2C_CLIENT_ADDR, TWI0_DUALCTRL);
   #else
     Wire.begin(I2C_CLIENT_ADDR);               // client only for some reason
-    Serial1.printf("\n\nHello, world!\nClient address: 0x%X Client-only mode\n", I2C_CLIENT_ADDR);
+    Serial1.printf("Client address: 0x%X\nClient-only mode\n", I2C_CLIENT_ADDR);
   #endif
 
   delay(2000);
@@ -238,6 +246,14 @@ void loop() {
     reqEvnt  = false; // reset flag
   }
 
+  if (dbgMsgCnt>0) {
+    for (int ptr=0; ptr < dbgMsgCnt; ptr++) {
+      Serial1.printf("Diag message %u: %s\n", ptr + 1, dbgMsgs[ptr].messageTxt);
+    }
+    Serial1.println("");
+    dbgMsgCnt = 0;
+  }
+
   delay(1);
 }
 
@@ -249,20 +265,21 @@ void receiveEvent(size_t howMany) {
   int16_t   _isr_HostInt   = 0;
   uint32_t  _isr_HostUlong = 0;
   int32_t   _isr_HostLong  = 0;
-  uint32_t  _isr_timeStamp   = 0;
-
-
-  Wire.readBytes( (uint8_t *) &rxData,  howMany);                  // transfer everything from buffer into memory
-  rxData.dataLen = howMany - 1;                                    // save the data length for future use
-
-  sprintf(buff, "RX cmd 0x%X plus %u data bytes\n", rxData.cmdAddr, rxData.dataLen);
-  Serial1.print(buff);
+  uint32_t  _isr_timeStamp = 0;
+  uint8_t   byteCnt        = 0;
   
-  rxData.cmdData[howMany] = '\0'; // set the Nth byte as a null
-  // for (int xx = 0; xx<howMany; xx++) {
-  //   Serial1.print(rxData.cmdData[xx]);
-  // }
-  // Serial1.println(" ");
+  rxData.cmdAddr = Wire.read();                                       // read first byte, store it as command address
+
+  while (Wire.available()) {
+    rxData.cmdData[byteCnt] = Wire.read();                            // keep reading until no more bytes available
+    byteCnt++;
+  }
+
+  rxData.dataLen = byteCnt;                                           // save the data length for future use
+
+  sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X plus %u data bytes", rxData.cmdAddr, rxData.dataLen);
+  dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+  dbgMsgCnt++;                                                     // increment debug message counter
 
   recvEvnt = true;                                                 // set event flag
   uint8_t _isr_cmdAddr = rxData.cmdAddr;
@@ -621,33 +638,37 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x53: // read total over-volt discon, uint
       {
-        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 6;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x54: // read total under-temp discon, uint
       {
-        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 6;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x55: // read total over-temp discon, uint
       {
-        _isr_HostUint = readFRAMuint(rxData.cmdAddr);
-        ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 11;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x56: // read last discon timestamp, ulong
       {
-        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_HostUlong, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 11;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMulong(rxData.cmdAddr);
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -662,31 +683,36 @@ void receiveEvent(size_t howMany) {
     case 0x60: // set time from Host, char string
       {
         // Serial1.println((char) rxData.cmdData);
-        for (int ptr=0; ptr < 4; ptr++){
-          sprintf(buff, "rxdata.cmdData[%u] = 0x%X\n", ptr, rxData.cmdData[ptr]);
-          Serial1.print(buff);
-        }
-        //union ulongArray buffer;
-
-        //strncpy(buffer.byteArray, rxData.cmdData, 4);
-        //_isr_timeStamp = buffer.longNumber;
+        // for (int ptr=0; ptr < 4; ptr++){
+        //   sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "rxdata.cmdData[%u] = 0x%X", ptr, rxData.cmdData[ptr]);
+        //   dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+        //   dbgMsgCnt++;
+        // }
+        union ulongArray buffer;
+        memcpy(buffer.byteArray, rxData.cmdData, 4);
+        _isr_timeStamp = buffer.longNumber;
         // _isr_timeStamp = strtoul(rxData.cmdData, nullptr, 10);
         if (_isr_timeStamp>1000000000) {
           setTime(_isr_timeStamp);                            // fingers crossed
           HostsetTime = true;                               // set flag
           lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
           if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
-          // sprintf(buff, "Timestamp %lu", _isr_timeStamp);
-          // Serial1.println(buff);
-        } 
-        // else Serial1.println("Error receiving timestamp!");
+          sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
+          dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+          dbgMsgCnt++;
+        } else {
+          sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Error decoding timestamp! %lu", _isr_timeStamp);
+          dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+          dbgMsgCnt++;
+        }
       }
       break;
     case 0x61: // read first-init timestamp, ulong
       {
-        _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
-        ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
-        txData.dataLen = 11;                                 // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMulong(rxData.cmdAddr);
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -694,26 +720,28 @@ void receiveEvent(size_t howMany) {
       {
         union ulongArray buffer;
         buffer.longNumber = now();
-        //ltoa(_isr_HostUlong, txData.cmdData, 10);         // store data as char string in tx buffer
-        txData.dataLen = 4;                                 // number of bytes to transmit
-        strncpy((char) txData.cmdData, (char) buffer.byteArray, txData.dataLen);
-        txdataReady = true;                                 // set flag we are ready to send data
+        // txData.dataLen = 4;                                 // number of bytes to transmit
+        // memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %lu", buffer.longNumber);
+        dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+        dbgMsgCnt++;
+        // txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
     case 0x63: // read time since last sync
       {
-        _isr_HostUlong = now();                           // read current time from time libvrary
-        _isr_timeStamp = _isr_HostUlong - lasttimeSync;   // subtract last sync timestamp from current timestamp
-        ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 11;                                // number of bytes to transmit
+        union ulongArray buffer;
+        buffer.longNumber = now() - lasttimeSync;   // subtract last sync timestamp from current timestamp
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
     case 0x64: // read time since last sync
       {
-        _isr_HostUlong = now();                           // read current time from time libvrary
-        _isr_timeStamp = _isr_HostUlong - firsttimeSync;  // subtract last sync timestamp from current timestamp
-        ltoa(_isr_timeStamp, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 11;                                // number of bytes to transmit
+        union ulongArray buffer;
+        txData.dataLen = 4;                                 // number of bytes to transmit
+        buffer.longNumber = now() - firsttimeSync;  // subtract last sync timestamp from current timestamp
+        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         txdataReady = true;                                 // set flag we are ready to send data
       }
       break;
@@ -811,7 +839,11 @@ long readADC(uint8_t adcPin, uint8_t noSamples) {
 void requestEvent() {   
   char reqBuff[80];                          // Host has requested data
   if (txdataReady) {
-    Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, Host will read as many bytes as it wants
+    for (int x = 0; x < txData.dataLen; x++)
+    {
+      Wire.write(txData.cmdData[x]);
+    }
+    // Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, Host will read as many bytes as it wants
     txdataReady = false;                          // clear tx flag
     // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
     // Serial1.println(reqBuff);
