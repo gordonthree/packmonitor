@@ -231,15 +231,17 @@ void loop() {
 // function that executes whenever data is received from Host
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
-  uint8_t   _isr_HostByte  = 0;
-  uint16_t  _isr_HostUint  = 0;
-  int16_t   _isr_HostInt   = 0;
-  uint32_t  _isr_HostUlong = 0;
-  int32_t   _isr_HostLong  = 0;
-  uint32_t  _isr_timeStamp = 0;
-
-  uint8_t   _isr_cmdAddr   = 0;                    // command / register address sent by host
-  uint8_t   _isr_dataLen   = 0;                    // number of data bytes sent by host
+  uint8_t   _isr_HostByte    = 0;
+  uint16_t  _isr_dataAddress = 0;
+  uint16_t  _isr_HostUint    = 0;
+  int16_t   _isr_HostInt     = 0;
+  uint32_t  _isr_HostUlong   = 0;
+  int32_t   _isr_HostLong    = 0;
+  uint32_t  _isr_timeStamp   = 0;
+  double    _isr_HostDouble  = 0.0;
+  
+  uint8_t   _isr_cmdAddr     = 0;                    // command / register address sent by host
+  uint8_t   _isr_dataLen     = 0;                    // number of data bytes sent by host
 
   _isr_cmdAddr             = Wire.read();          // read first byte, store it as command address
   recvEvnt                 = true;                 // set flag to toggle LED in loop()
@@ -257,90 +259,34 @@ void receiveEvent(size_t howMany) {
   dbgMsgCnt++;                                                        // increment debug message counter
   
   switch  (_isr_cmdAddr) {
-    case 0x21: // high current limit, unsigned int
+    case 0x21: // high current limit, double
+    case 0x22: // high-temp limit, double
+    case 0x23: // low-temp limit, double
+    case 0x24: // high-voltage limit, double
+    case 0x25: // low-voltage limit, double
       {
-        double   cmdData     = getDouble(rxData.cmdData);
-        uint16_t dataAddress = framLookupAddr(rxData.cmdAddr);
+        _isr_HostDouble  = getDouble(rxData.cmdData);
+        _isr_dataAddress = framLookupAddr(rxData.cmdAddr);
         framWriteDouble(dataAddress, cmdData);
-      }
-      break; 
-    case 0x22: // high-temp limit, unsigned int
-      {
-        _isr_HostUint = atol(rxData.cmdData);
-         writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
-      }
-      break;
-    case 0x23: // low-temp limit, signed int
-      {
-        _isr_HostInt = atoi(rxData.cmdData);
-        writeFRAMint(rxData.cmdAddr, _isr_HostInt);
-      }
-      break;
-    case 0x24: // high-voltage limit, unsigned int
-      {
-        _isr_HostUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
-      }
-      break;
-    case 0x25: // low-voltage limit, unsigned int
-      {
-        _isr_HostUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
       }
       break;
     case 0x26: // set config0, byte
-      {
-        _isr_HostByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
-      }
-      break;
     case 0x27: // set config1, byte
-      {
-        _isr_HostByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
-      }
-      break;
     case 0x28: // set config2, byte
       {
-        _isr_HostByte = rxData.cmdData[0];
-        writeFRAMuint(rxData.cmdAddr, _isr_HostByte);
+        _isr_HostByte    = rxData.cmdData[0];
+        _isr_dataAddress = framLookupAddr(rxData.cmdAddr);
+        framWriteByte(dataAddress, _isr_HostByte);
       }
       break;
     case 0x29: // read config0, byte
-      {
-        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
-        txData.dataLen = 1;                                 // number of bytes to transmit
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-      }
-      break;
     case 0x2A: // read config1, byte
-      {
-        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
-        txData.dataLen = 1;                                 // number of bytes to transmit
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-      }
-      break;
     case 0x2B: // read config2, byte
-      {
-        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
-        txData.dataLen = 1;                                 // number of bytes to transmit
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-      }
-      break;
     case 0x2C: // read status1, byte
-      {
-        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
-        txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
-        txData.dataLen = 1;                                 // number of bytes to transmit
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-      }
-      break;
     case 0x2D: // read status2, byte
       {
-        _isr_HostByte = readFRAMbyte(rxData.cmdAddr);
+        _isr_dataAddress  = framLookupAddr(rxData.cmdAddr);
+        _isr_HostByte     = framReadByte(_isr_dataAddress);
         txData.cmdData[0] = _isr_HostByte;                // store byte in outgoing buffer
         txData.dataLen = 1;                                 // number of bytes to transmit
         _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
@@ -358,25 +304,30 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x30: // clear coul-counter, no data
       { 
-        writeFRAMint(0x31, 0);
+        // TO DO
+        // _isr_dataAddress  = framPurgeData(rxData.cmdAddr);
       }
       break;
-    case 0x31: // read coulomb counter, signed int
+    case 0x31: // read coulomb counter, double
       {
-        _isr_HostInt = readFRAMint(rxData.cmdAddr);
-        ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
-        txData.dataLen = 6;                                 // number of bytes to transmit
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+        // this should be something stored in ram, constantly updating. it should be saved to fram too
+
+        // _isr_dataAddress = framLookupAddr(rxData.cmdAddr);                       // look up eeprom address for this command
+        // txData.dataLen   = 4;                                                    // number of bytes to transmit
+        
+        // fram.readBlock(_isr_dataAddress, txData.cmdData, 4);  // read data from eeprom straight into byte array
+        // _I2C_DATA_RDY    = true;                                                 // set flag we are ready to send data
       }
       break;
     case 0x32: // clear total amps counter, no data
       { 
-        writeFRAMint(0x34, 0);
-        writeFRAMint(0x35, 0);
+        // TO DO
+        // _isr_dataAddress  = framPurgeData(rxData.cmdAddr);
       }
       break;
     case 0x33: // read instant amps, send raw adc value, ulong
       {
+        // this should be something stored in ram, constantly updating. it should be saved to fram too
         union ulongArray buffer;
         buffer.longNumber = readFRAMuint(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
@@ -387,53 +338,23 @@ void receiveEvent(size_t howMany) {
         dbgMsgCnt++;
       }
       break;
-    case 0x34: // read total amps in counter, unsigned long
-      {
-        // _isr_HostUlong = readFRAMulong(rxData.cmdAddr);
-        union ulongArray buffer;
-        buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
-        txData.dataLen = 4;                                 // number of bytes to transmit
-        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-
-      }
-      break;
-    case 0x35: // read total amps out counter, unsigned long
-      {
-        union ulongArray buffer;
-        buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
-        txData.dataLen = 4;                                 // number of bytes to transmit
-        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-
-      }
-      break;
+    case 0x34: // read total amps in counter, double
+    case 0x35: // read total amps out counter, double
     case 0x36: // read lifetime amps in, unsigned long
-      {
-        union ulongArray buffer;
-        buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
-        txData.dataLen = 4;                                 // number of bytes to transmit
-        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-
-      }
-      break;
     case 0x37: // read lifetime amps out, ubsigned long 
-      {
-        union ulongArray buffer;
-        buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
-        txData.dataLen = 4;                                 // number of bytes to transmit
-        memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
-        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-
-      }
+        _isr_dataAddress = framLookupAddr(rxData.cmdAddr);                       // look up eeprom address for this command
+        txData.dataLen   = 4;                                                    // number of bytes to transmit
+        
+        fram.readBlock(_isr_dataAddress, txData.cmdData, 4);  // read data from eeprom straight into byte array
+        _I2C_DATA_RDY    = true;                                                 // set flag we are ready to send data
       break;
     case 0x38: // clear voltage memory, no data returned
       { 
-        writeFRAMint(0x3A, 0);
-        writeFRAMint(0x3B, 0);
-        writeFRAMint(0x3C, 0);
-        writeFRAMint(0x3D, 0);
+        // TO DO clear fram
+        // writeFRAMint(0x3A, 0);
+        // writeFRAMint(0x3B, 0);
+        // writeFRAMint(0x3C, 0);
+        // writeFRAMint(0x3D, 0);
       }
       break;
     case 0x39: // read pack voltage (as raw adc value) uint32
@@ -872,44 +793,44 @@ void clearRXBuffer() {
   purgeRXBuffer = false;
 }
 
-uint32_t framReadUlong(uint8_t dataAddress, uint8_t dataLen) {
+uint32_t framReadUlong(uint16_t dataAddress, uint8_t dataLen) {
   union ulongArray buffer;
   fram.readBlock(dataAddress, buffer.byteArray, dataLen);
   return buffer.longNumber;
 }
 
-void framWriteUlong(uint8_t dataAddress, uint32_t framData, uint8_t dataLen) {
+void framWriteUlong(uint16_t dataAddress, uint32_t framData, uint8_t dataLen) {
   union ulongArray buffer;
   buffer.longNumber = framData;                               // convert float into byte array 
   fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
 }
 
-int32_t framReadInt  (uint8_t dataAddress, uint8_t dataLen)
+int32_t framReadInt  (uint16_t dataAddress, uint8_t dataLen)
 {
   union longArray buffer;
   fram.readBlock(dataAddress, buffer.byteArray, dataLen);
   return buffer.longNumber;
 }
 
-void framWriteInt (uint8_t dataAddress, int32_t  framData, uint8_t dataLen)
+void framWriteInt (uint16_t dataAddress, int32_t  framData, uint8_t dataLen)
 {
   union longArray buffer;
   buffer.longNumber = framData;                               // convert float into byte array 
   fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
 }
 
-uint8_t framReadByte (uint8_t dataAddress)
+uint8_t framReadByte (uint16_t dataAddress)
 {
   uint8_t buffer = fram.readByte(dataAddress);
   return buffer;
 }
 
-void framWriteByte(uint8_t dataAddress, uint8_t  framData)
+void framWriteByte(uint16_t dataAddress, uint8_t  framData)
 {
   fram.writeByte(dataAddress, framData);
 }
 
-void framWriteDouble(uint8_t dataAddress, double framData)
+void framWriteDouble(uint16_t dataAddress, double framData)
 {
   const uint8_t dataLen = 4;
   union doubleArray buffer;
@@ -917,7 +838,7 @@ void framWriteDouble(uint8_t dataAddress, double framData)
   fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
 }
 
-double framReadDouble(uint8_t dataAddress)
+double framReadDouble(uint16_t dataAddress)
 {
   const uint8_t dataLen = 4;
   union doubleArray buffer;
@@ -926,7 +847,7 @@ double framReadDouble(uint8_t dataAddress)
   return buffer.doubleVal;
 }
 
-uint16_t framLookupAddr (uint8_t cmdAddress);
+uint16_t framLookupAddr (uint16_t cmdAddress);
 {
 
 }
