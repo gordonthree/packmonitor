@@ -31,71 +31,35 @@ volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
 volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
 
-
-// #ifdef MEGACOREX
-// #pragma message "Compiled using MegaCoreX!"
-// #endif
-
-// #ifdef TWI_MANDS
-// #pragma message "Flag TWI_MANDS has been set"
-// #endif
-
-// #ifdef PM_CLIENT_ADDRESS
-// #pragma message "Client address found in build flag"
-// #else
-// #pragma message "Client address NOT FOUND in build flag, will check PF0 PF1 bits"
-// //#define I2C_Client_ADDR 0x34
-// #endif
-
-PackMonLib toolbox();
+PackMonLib  toolbox();                                     // collection of routines used by both client and host applications
+NAU7802     extAdc();                                      // NAU7802 ADC device
+I2C_eeprom  fram(0x50, I2C_DEVICESIZE_24LC64);             // ferro-electric memory baby!
 
 char buff[200];
-int I2C_CLIENT_ADDR = 0x34;       // base address, modified by pins PF0 / PF2
+int I2C_CLIENT_ADDR = 0x34;                                 // base address, modified by pins PF0 / PF2
 
 void scanI2C(void);
 
 void receiveEvent(size_t howMany);
 
-// function to eventually save data to on board FRAM
-void writeFRAMuint(uint8_t myAddr, uint32_t myData) { 
 
-}
+uint32_t framReadUlong(uint8_t dataAddress);
+int32_t  framReadInt  (uint8_t dataAddress);
+uint8_t  framReadByte (uint8_t dataAddress);
 
-void writeFRAMint(uint8_t myAddr, int32_t myData) { 
-
-}
-
-// function to read byte from FRAM
-uint8_t readFRAMbyte(uint8_t myAddr) { 
-
-}
-
-// function to read uint from FRAM
-uint32_t readFRAMuint(uint8_t myAddr);
-
-// function to read uint from FRAM (eventually)
-float readFRAMfloat(uint8_t myAddr);
-
-
-// function to read ulong from FRAM
-uint32_t readFRAMulong(uint8_t myAddr) { 
-
-}
-
-// function to read int from FRAM
-int16_t readFRAMint(uint8_t myAddr) { 
-
-}
+void framWriteUlong   (uint8_t dataAddress, uint32_t framData);
+void framWriteInt     (uint8_t dataAddress, int32_t  framData);
+void framWriteByte    (uint8_t dataAddress, uint8_t  framData);
 
 long readADC(uint8_t adcPin, uint8_t noSamples);
 
-void clearTXBuffer();
+void clearTXBuffer(void);
 
-void clearRXBuffer();
+void clearRXBuffer(void);
 
 // function that executes whenever data is requested by Host
 // this function is registered as an event, see setup()
-void requestEvent() ;
+void requestEvent(void) ;
 
 #if defined(MCU_AVR128DA32)
   //HardwareI2C &i2c_host = TWI1;
@@ -105,7 +69,6 @@ void requestEvent() ;
 void setup() {
   pinMode(PIN_PF0, INPUT_PULLUP); // pins for client address configuration
   pinMode(PIN_PF1, INPUT_PULLUP);
-
 
   bool addr0 = digitalRead(PIN_PF0); // see what our hardwired address is
   bool addr1 = digitalRead(PIN_PF1);
@@ -128,11 +91,16 @@ void setup() {
   pinMode(ADC2, INPUT);
   pinMode(ADC3, INPUT);
 
+  // init f-ram eeprom
+  fram.begin();
+
+  // init Serial port 1
   Serial1.begin(115200); 
 
   delay(2000);
   Serial1.println("\n\nHello, world!");
 
+  // setup i2c bus(es) dedpending on what chip we are compiling for
   #if defined(MCU_AVR128DA32)                  // Setup both TWO0 and TWI1
     i2c_host.begin();                          // Host on TWI1, default pins SDA PF2, SCL PF3
     i2c_host.setClock(100000);                 // bus speed 100khz
@@ -896,30 +864,39 @@ void clearRXBuffer() {
   purgeRXBuffer = false;
 }
 
-void framWriteFloat(int dataAddress, float framData) {
-  const uint16_t dataLen = 4;
-  union floatArray buffer;
-  buffer.floatNumber = framData;                               // convert float into byte array 
-  fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
+uint32_t framReadUlong(uint8_t dataAddress, uint8_t dataLen) {
+  union ulongArray buffer;
+  fram.readBlock(dataAddress, buffer.byteArray, dataLen);
+  return buffer.longNumber;
 }
 
-void framWriteUlong(int dataAddress, uint32_t framData) {
-  const uint16_t dataLen = 4;
+void framWriteUlong(uint8_t dataAddress, uint32_t framData, uint8_t dataLen) {
   union ulongArray buffer;
   buffer.longNumber = framData;                               // convert float into byte array 
   fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
 }
 
-float framReadFloat(int dataAddress) {
-  const uint16_t dataLen = 4;
-  union floatArray buffer;
-  fram.readBlock(dataAddress, buffer.byteArray, dataLen);
-  return buffer.floatNumber;
-}
-
-uint32_t framReadUlong(int dataAddress) {
-  const uint16_t dataLen = 4;
-  union ulongArray buffer;
+int32_t framReadInt  (uint8_t dataAddress, uint8_t dataLen)
+{
+  union longArray buffer;
   fram.readBlock(dataAddress, buffer.byteArray, dataLen);
   return buffer.longNumber;
+}
+
+void framWriteInt (uint8_t dataAddress, int32_t  framData, uint8_t dataLen)
+{
+  union longArray buffer;
+  buffer.longNumber = framData;                               // convert float into byte array 
+  fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
+}
+
+uint8_t framReadByte (uint8_t dataAddress)
+{
+  uint8_t buffer = fram.readByte(dataAddress);
+  return buffer;
+}
+
+void framWriteByte(uint8_t dataAddress, uint8_t  framData)
+{
+  fram.writeByte(dataAddress, framData);
 }

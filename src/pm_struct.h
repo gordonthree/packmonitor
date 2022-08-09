@@ -41,4 +41,8 @@ union floatArray
     uint8_t byteArray[4];
 };
 
-
+union longArray
+{
+    int32_t longNumber=0;
+    uint8_t byteArray[4];
+};
