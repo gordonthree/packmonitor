@@ -5,14 +5,14 @@ const uint8_t rxBufferSize = 50;
 const uint8_t adcBufferSize = 4;        // adc1 current, adc2 pack voltage, adc3 bus voltage, adc4 coulumb counter
 
 struct I2C_RX_DATA {
-  uint8_t cmdAddr               = 0;    // single byte command register
-  uint8_t cmdData[rxBufferSize] = {};   // room for N bytes of data
-  size_t  dataLen               = 0;    // number of bytes in buffer
+  uint8_t cmdAddr;                // single byte command register
+  uint8_t dataLen;                // number of bytes in buffer
+  uint8_t cmdData[rxBufferSize];  // room for N bytes of data
 };
 
 struct I2C_TX_DATA {
-  uint8_t cmdData[txBufferSize] = {};   // room for N bytes of data
-  size_t  dataLen = 50;
+  uint8_t dataLen;
+  uint8_t cmdData[txBufferSize];   // room for N bytes of data
 };
 
 struct ADC_DATA {
@@ -20,8 +20,8 @@ struct ADC_DATA {
   int32_t adcRaw   = 0;                 // raw value
   int32_t adcMin   = 0;                 // raw value
   int32_t adcMax   = 0;                 // raw value
-  double  Amps     = 0.0;               // formatted value
-  double  Volts    = 0.0;               // formatted value
+  float   Amps     = 0.0;               // formatted value
+  float   Volts    = 0.0;               // formatted value
 };
 
 struct DEBUG_MSGS {
