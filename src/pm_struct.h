@@ -31,18 +31,23 @@ struct DEBUG_MSGS {
 
 union ulongArray
 {
-    uint32_t longNumber=0;
-    uint8_t  byteArray[4];
+  uint32_t longNumber=0;
+  uint8_t  byteArray[4];
 };
 
 union floatArray
 {
-    float   floatNumber=0.0;
-    uint8_t byteArray[4];
+  float   floatNumber=0.0;
+  uint8_t byteArray[4];
 };
 
 union longArray
 {
-    int32_t longNumber=0;
-    uint8_t byteArray[4];
+  int32_t longNumber=0;
+  uint8_t byteArray[4];
 };
+
+union doubleArray {
+  double doubleVal;
+  uint8_t byteArray[4];
+}

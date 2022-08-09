@@ -43,13 +43,20 @@ void scanI2C(void);
 void receiveEvent(size_t howMany);
 
 
-uint32_t framReadUlong(uint8_t dataAddress);
-int32_t  framReadInt  (uint8_t dataAddress);
-uint8_t  framReadByte (uint8_t dataAddress);
+uint16_t framLookupAddr     (uint8_t  cmdAddress);
+uint32_t framReadUlong      (uint16_t dataAddress);
+int32_t  framReadInt        (uint16_t dataAddress);
+uint8_t  framReadByte       (uint16_t dataAddress);
+double   framReadDouble     (uint16_t dataAddress);
 
-void framWriteUlong   (uint8_t dataAddress, uint32_t framData);
-void framWriteInt     (uint8_t dataAddress, int32_t  framData);
-void framWriteByte    (uint8_t dataAddress, uint8_t  framData);
+void     framWriteUlong     (uint16_t dataAddress, uint32_t framData);
+void     framWriteInt       (uint16_t dataAddress, int32_t  framData);
+void     framWriteByte      (uint16_t dataAddress, uint8_t  framData);
+void     framWriteDouble    (uint16_t dataAddress, double   framData);
+
+int32_t  getLong            (uint8_t * byteArray);
+uint32_t getULong           (uint8_t * byteArray);
+double   getDouble          (uint8_t * byteArray);
 
 long readADC(uint8_t adcPin, uint8_t noSamples);
 
@@ -252,8 +259,9 @@ void receiveEvent(size_t howMany) {
   switch  (_isr_cmdAddr) {
     case 0x21: // high current limit, unsigned int
       {
-        _isr_HostUint = atol(rxData.cmdData);
-        writeFRAMuint(rxData.cmdAddr, _isr_HostUint);
+        double   cmdData     = getDouble(rxData.cmdData);
+        uint16_t dataAddress = framLookupAddr(rxData.cmdAddr);
+        framWriteDouble(dataAddress, cmdData);
       }
       break; 
     case 0x22: // high-temp limit, unsigned int
@@ -899,4 +907,53 @@ uint8_t framReadByte (uint8_t dataAddress)
 void framWriteByte(uint8_t dataAddress, uint8_t  framData)
 {
   fram.writeByte(dataAddress, framData);
+}
+
+void framWriteDouble(uint8_t dataAddress, double framData)
+{
+  const uint8_t dataLen = 4;
+  union doubleArray buffer;
+  buffer.doubleVal = framData;
+  fram.writeBlock(dataAddress, buffer.byteArray, dataLen);
+}
+
+double framReadDouble(uint8_t dataAddress)
+{
+  const uint8_t dataLen = 4;
+  union doubleArray buffer;
+  fram.readBlock(dataAddress, buffer.byteArray, dataLen);
+
+  return buffer.doubleVal;
+}
+
+uint16_t framLookupAddr (uint8_t cmdAddress);
+{
+
+}
+
+double getDouble(uint8_t * byteArray)
+{
+  union doubleArray buffer;
+  const uint8_t dataLen = 4;
+  memcpy(byteArray, buffer.byteArray, dataLen);
+
+  return buffer.doubleVal;
+}
+
+uint32_t getULong(uint8_t * byteArray)
+{
+  union ulongArray buffer;
+  const uint8_t dataLen = 4;
+  memcpy(byteArray, buffer.byteArray, dataLen);
+
+  return buffer.longNumber;
+}
+
+int32_t getLong(uint8_t * byteArray)
+{
+  union ulongArray buffer;
+  const uint8_t dataLen = 4;
+  memcpy(byteArray, buffer.byteArray, dataLen);
+
+  return buffer.longNumber;
 }
