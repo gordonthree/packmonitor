@@ -200,15 +200,16 @@ void loop() {
     adcDataBuffer[0].Volts = Volts;
     // Serial1.print("0: ");
     // Serial1.print(Amps);
-    // Serial1.print(" 1: ");
-    // Serial1.print(Volts, 3);
-    // Serial1.print("v Raw ");
+    // Serial1.print("0: ");
+    // // Serial1.print(Volts, 3);
+    // // Serial1.print("v Raw ");
     // Serial1.print(rawAdc);
-    // Serial1.println(" ");
+    // // Serial1.println(" ");
+    // Serial1.print(" 1: ");
 
     rawAdc = readADC(ADC1, 20);
     // Serial1.print(rawAdc);
-    // Serial1.print(" <-ADC1 ADC2-> ");
+    // Serial1.print(" 2: ");
     adcDataBuffer[1].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv2;
     adcDataBuffer[1].Volts = Volts;
@@ -217,7 +218,7 @@ void loop() {
     // Serial1.println(rawAdc);
     adcDataBuffer[2].adcRaw   = rawAdc;
     Volts = (float)(rawAdc * (sysVcc / 1024.0)) / vDiv3;
-    adcDataBuffer[1].Volts = Volts;
+    adcDataBuffer[2].Volts = Volts;
     adcUpdateCnt = 0;
   }
   
@@ -396,14 +397,16 @@ void receiveEvent(size_t howMany) {
         writeFRAMint(0x35, 0);
       }
       break;
-    case 0x33: // read instant amps, signed int
+    case 0x33: // read instant amps, send raw adc value, ulong
       {
-        //_isr_HostInt = readFRAMint(rxData.cmdAddr);
-        //ltoa(_isr_HostInt, txData.cmdData, 10);           // store data as char string in tx buffer
-        union floatArray buffer;
-        buffer.floatNumber = readFRAMfloat(rxData.cmdAddr);
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %u", buffer.longNumber);
+        dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+        dbgMsgCnt++;
       }
       break;
     case 0x34: // read total amps in counter, unsigned long
@@ -413,6 +416,8 @@ void receiveEvent(size_t howMany) {
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
       }
       break;
     case 0x35: // read total amps out counter, unsigned long
@@ -421,6 +426,8 @@ void receiveEvent(size_t howMany) {
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
       }
       break;
     case 0x36: // read lifetime amps in, unsigned long
@@ -429,6 +436,8 @@ void receiveEvent(size_t howMany) {
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
       }
       break;
     case 0x37: // read lifetime amps out, ubsigned long 
@@ -437,6 +446,8 @@ void receiveEvent(size_t howMany) {
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
       }
       break;
     case 0x38: // clear voltage memory, no data returned
@@ -447,13 +458,14 @@ void receiveEvent(size_t howMany) {
         writeFRAMint(0x3D, 0);
       }
       break;
-    case 0x39: // read pack voltage, char* array
+    case 0x39: // read pack voltage (as raw adc value) uint32
       {
-        union floatArray buffer;
-        buffer.floatNumber = readFRAMfloat(rxData.cmdAddr);
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
-        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %f", buffer.floatNumber);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %u", buffer.longNumber);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;
       }
@@ -471,6 +483,8 @@ void receiveEvent(size_t howMany) {
         union ulongArray buffer;
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
       }
       break;
@@ -488,6 +502,8 @@ void receiveEvent(size_t howMany) {
         buffer.longNumber = readFRAMfloat(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
+        _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
+
       }
       break;
     case 0x3E: // read bus voltage, float
@@ -495,12 +511,12 @@ void receiveEvent(size_t howMany) {
         // _isr_HostUint = readFRAMuint(rxData.cmdAddr);
         // ltoa(_isr_HostUint, txData.cmdData, 10);           // store data as char string in tx buffer
         // dtostrf(framData, 3, 2, txData.cmdData);
-        union floatArray buffer;
-        buffer.floatNumber = readFRAMfloat(rxData.cmdAddr);
+        union ulongArray buffer;
+        buffer.longNumber = readFRAMuint(rxData.cmdAddr);
         txData.dataLen = 4;                                 // number of bytes to transmit
         memcpy(txData.cmdData, buffer.byteArray, txData.dataLen);
         _I2C_DATA_RDY = true;                                 // set flag we are ready to send data
-        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %f", buffer.floatNumber);
+        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Sending %u", buffer.longNumber);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;
 
