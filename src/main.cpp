@@ -18,7 +18,7 @@ volatile bool HostsetTime      = false;                  // flag that is set whe
 volatile bool _I2C_DATA_RDY    = false;                  // flag that is set when data is ready to send to Host
 volatile bool _I2C_CMD_RECV    = false;                  // flag that is set when host sends a command
 volatile bool purgeTXBuffer    = true;                   // tell loop() to clear the TX buffer
-volatile bool purgeRXBuffer    = true;                   // tell loop() to clear the RX buffer
+// volatile bool purgeRXBuffer    = true;                   // tell loop() to clear the RX buffer
 volatile char txtMessage[50];                            // alternate buffer for message from Host
 
 volatile uint8_t messageLen    = 0;                      // message from Host length
@@ -28,7 +28,7 @@ volatile time_t firsttimeSync  = 0;                      // record the timestamp
 volatile DEBUG_MSGS dbgMsgs[10];                         // room for messages from inside isr to be printed outside
 volatile uint8_t    dbgMsgCnt  = 0;
 
-volatile I2C_RX_DATA rxData;
+// volatile I2C_RX_DATA rxData;
 volatile I2C_TX_DATA txData;
 volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
 
@@ -58,7 +58,7 @@ void receiveEvent(size_t howMany);
 // void     framWriteDouble    (uint16_t dataAddress, double   framData);
 
 void clearTXBuffer(void);
-void clearRXBuffer(void);
+// void clearRXBuffer(void);
 
 int32_t   getLong            (uint8_t * byteArray);
 uint32_t  getULong           (uint8_t * byteArray);
@@ -159,7 +159,7 @@ void loop() {
   digitalWrite(LED4, HostsetTime);
 
   if (purgeTXBuffer) clearTXBuffer(); 
-  if (purgeRXBuffer) clearRXBuffer();
+  // if (purgeRXBuffer) clearRXBuffer();
 
   if (adcUpdateCnt > adcUpdateInterval) {
   
@@ -386,7 +386,7 @@ void receiveEvent(size_t howMany) {
 
     case 0x60: // set time from Host (write only)
       union ulongArray buffer;
-      memcpy(buffer.byteArray, rxData.cmdData, 4);
+      memcpy(buffer.byteArray, _isr_cmdData, 4);
       _isr_timeStamp = buffer.longNumber;
 
       if (_isr_timeStamp>1000000000) {
@@ -428,7 +428,7 @@ void receiveEvent(size_t howMany) {
   } // end switch
   // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
   // Serial1.println(buff);
-  purgeRXBuffer = true; // ask main loop() to purge buffer
+  // purgeRXBuffer = true; // ask main loop() to purge buffer
 } // end of handleEvent
 
 void scanI2C() {
@@ -540,16 +540,16 @@ void clearTXBuffer() {
   purgeTXBuffer = false;
 }
 
-void clearRXBuffer() {
-  uint16_t myPtr = 0;
-  rxData.cmdAddr = 0;
-  rxData.dataLen = 0;
-  while (myPtr < rxBufferSize) {
-    rxData.cmdData[myPtr] = '\0';
-    myPtr++;
-  }
-  purgeRXBuffer = false;
-}
+// void clearRXBuffer() {
+//   uint16_t myPtr = 0;
+//   rxData.cmdAddr = 0;
+//   rxData.dataLen = 0;
+//   while (myPtr < rxBufferSize) {
+//     rxData.cmdData[myPtr] = '\0';
+//     myPtr++;
+//   }
+//   purgeRXBuffer = false;
+// }
 
 // uint32_t framReadUlong(uint16_t dataAddress, uint8_t dataLen) {
 //   union ulongArray buffer;
