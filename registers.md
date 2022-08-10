@@ -1,41 +1,40 @@
-# Programming registers for packmonitor controller
+# PackMonitor Registers
 
-## These registers are identified by a single command byte and zero or more data bytes
+## Programming registers for packmonitor controller
+
+### These registers are identified by a single command byte and zero or more data bytes
 
 #### 0x00 to 0x20
 
 * (reserved)
 
-#### 0x21 Set high-current limit (unsigned int)
+#### 0x21 R/W High-current limit, double / float
 
-* Set in milliamps, range 0 to 65535 
-* Default is 10000 (10a)
+* Set high current limit in amps, recommended 2 decimal precion
+* Example 10.00 (default)
 
-#### 0x22 Set high-temp limit (unsigned int)
+#### 0x22 R/W High-temp limit, double / float
 
-* Set in millidegrees C, range 0 to 65535 or 65.535c
-* Default 45000 or 45c
-* Send data as char string
+* Set high temperature limit in degrees C, recommend 1 decimal precision
+* Example 55.0 (default)
 
-#### 0x23 Set low-temp limit (int / signed 16-bit)
+#### 0x23 R/W Low-temp limit, double / float
 
-* Set in millidegrees C, range -32768 to 32767 or -32.768c to 32.767c
-* Default 0c
-* Send data as char string
+* Set low temperature limit in degrees C, recommend 1 decimal precision
+* Example 10.0 (default)
 
-#### 0x24 Set pack high-voltage limit in millivolts (unsigned int)
+#### 0x24 R/W Pack high-voltage limit, double / float
 
-* valid range 9600 to 26000, values outside this range will be ignored
-* default 14800
-* Send data as char string
+* Set pack high voltage disconnect limit, recommend 2 decimal precision
+* Example 14.80  (default)
 
-#### 0x25 Set pack low-voltage limit in millivolts (unsigned int)
+#### 0x25 R/W Pack low-voltage limit, double / float
 
 * valid range 600 to 26000, values outside this range will be ignored
 * default 10800 or 10.8 volts
 * Send data as char string
 
-#### 0x26 Set config0 bits (byte) (0 disabled, 1 enabled)
+#### 0x26 R/W config0 bits (byte) (0 disabled, 1 enabled)
 
 * Bit 7: Disable all protection (default 0)
   * 1: Monitor pack only, ignore all fault conditions
@@ -60,27 +59,15 @@
   * 1: Status LEDs work with button (default)
   * 0: Status LEDs disabled
 
-#### 0x27 Set config1 bits (byte)
+#### 0x27 R/W config1 bits, return byte
 
 * Bit 0 to 7: (reserved)
 
-#### 0x28 Set config2 bits (byte)
+#### 0x28 R/W config2 bits, return byte
 
 * Bit 0 to 7: (reserved)
 
-#### 0x29 Read config0 (byte)
-
-* See set config0 for details
-
-#### 0x2A Read config1 (byte)
-
-* See set config1 for details
-
-#### 0x2B Read config2 (byte)
-
-* See set config2 for details
-
-#### 0x2C Read status0 bites
+#### 0x2C R/O Read status0 bits, return byte
 
 * Bit 7: Config set
 * Bit 6: Time set
@@ -91,59 +78,57 @@
 * Bit 1: I-sense out of range
 * Bit 0: V-sense out of range
 
-#### 0x2D Read status1 bits
+#### 0x2D R/O Read status1 bits
 
 #### 0x2E through 0x2F
 
 * (reserved)
 
-#### 0x30 Clear coulomb counter, no data
-
+#### 0x30 W/O Clear coulomb counter, no data
 
 * Reset coulomb counter
 
-#### 0x31 Read coulomb counter. returns float as char* array
-
+#### 0x31 R/O Coulomb counter. double / float
 
 * Shows surplus amps in, or deficit amps out
 
-#### 0x32 Clear total amps counter, except lifetime, returns float as char* array
+#### 0x32 W/O Clear total amps counter, except lifetime
 
-#### 0x33 Read load amperage, returns float as char* array
+#### 0x33 Read load amperage, double / float
 
 * Current load in amps
 
-#### 0x34 Read total pack amps in, returns float as char* array
+#### 0x34 R/O total pack amps in, double / float
 
-#### 0x35 Read total pack amps out, returns float as char* array
+#### 0x35 R/O total pack amps out, double / float
 
-#### 0x36 Read lifetime amps in, returns float as char* array
+#### 0x36 R/O lifetime amps in, double / float
 
-#### 0x37 Read lifetime amps out, returns float as char* array
+#### 0x37 R/O lifetime amps out, double / float
 
-#### 0x38 Clear voltage memory, no data
+#### 0x38 W/O Clear voltage memory, no data
 
-#### 0x39 Read pack voltage, returns float as char* array
+#### 0x39 R/O pack voltage, double / float
 
 * Returns the current pack voltage in volts
 
-#### 0x3A Read lowest voltage memory, returns float as char* array
+#### 0x3A R/O lowest voltage memory, double / float
 
 * Lowest voltage seen since last clear in volts
 
-#### 0x3B Read lowest voltage timestamp, unsigned long
+#### 0x3B R/O lowest voltage timestamp, unsigned long
 
 * Timestamp for when the lowest voltage was recorded
 
-#### 0x3C Read highest voltage memory, returns float as char* array
+#### 0x3C R/O highest voltage memory, double / float
 
 * Highest voltage seen since last clear in volts
 
-#### 0x3D Read highest voltage timestamp, unsigned long
+#### 0x3D R/O highest voltage timestamp, unsigned long
 
 * Timestamp for when the highest voltage was recorded
 
-#### 0x3E Read bus voltage, returns float as char* array
+#### 0x3E R/O bus voltage, double / float
 
 * Returns the current bus voltage in volts
 
@@ -151,64 +136,70 @@
 
 * (reserved)
 
-#### 0x40 Clear temperature memories, no data
+#### 0x40 W/O Clear temperature memories, no data
 
-#### 0x41 Read T0 thermistor, returns float as char* array
+#### 0x41 R/O Read T0 thermistor instant, double / float
 
-#### 0x42 Read T0 lowest, returns float as char* array
+#### 0x42 R/O Read T1 thermistor instant, double / float
 
-#### 0x43 Read T0 highest, returns float as char* array
+#### 0x43 R/O Read T2 thermistor instant, double / float
 
-#### 0x44 Read T1 thermistor, returns float as char* array
+#### 0x44 R/O Read T0 lowest, double / float
 
-#### 0x45 Read T1 lowest, returns float as char* array
+#### 0x45 R/O Read T1 lowest, double / float
 
-#### 0x46 Read T1 highest, returns float as char* array
+#### 0x46 R/O Read T2 lowest, double / float
 
-#### 0x47 T0 lowest memory timestamp, unsigned long
+#### 0x47 R/O Read T0 highest, double / float
 
-#### 0x48 T1 lowest memory timestamp, unsigned long
+#### 0x48 R/O Read T1 highest, double / float
 
-#### 0x49 T0 highest memory timestamp, unsigned long
+#### 0x49 R/O Read T2 highest, double / float
 
-#### 0x4A T1 highest memory timestamp, unsigned long
+#### 0x4A R/O T0 lowest memory timestamp, unsigned long
 
-#### 0x4B through 0x4F
+#### 0x4B R/O T1 lowest memory timestamp, unsigned long
 
-* (reserved)
+#### 0x4C R/O T2 lowest memory timestamp, unsigned long
 
-#### 0x50 Clear disconnect history
+#### 0x4D R/O T0 highest memory timestamp, unsigned long
 
-#### 0x51 Read total over-current disconnects (usigned int)
+#### 0x4E R/O T1 highest memory timestamp, unsigned long
 
-#### 0x52 Read total under-voltage disconnects (usigned int)
+#### 0x4F R/O T2 highest memory timestamp, unsigned long
 
-#### 0x53 Read total over-voltage disconnects (usigned int)
+#### 0x50 W/O Clear disconnect history
 
-#### 0x54 Read total under-temp disconnects (usigned int)
+#### 0x51 R/O total over-current disconnects unsigned long
 
-#### 0x55 Read total over-temp disconnects (usigned int)
+#### 0x52 R/O total under-voltage disconnects unsigned long
 
-#### 0x56 Read last disconnect timestamp (ulong)
+#### 0x53 R/O total over-voltage disconnects unsigned long
 
-#### 0x57 Read last disconnect reason code (byte)
+#### 0x54 R/O total under-temp disconnects unsigned long
+
+#### 0x55 R/O total over-temp disconnects unsigned long
+
+#### 0x56 R/O last disconnect timestamp unsigned long
+
+#### 0x57 R/O last disconnect reason code byte
 
 #### 0x58 through 0x5F
 
 * (reserved)
 
-#### 0x60 Set time (char *)
+#### 0x60 Set time ulong
 
 * Tranfer time from master to slave
-* Expects unix timestamp sent as char string
+* Expects unix timestamp, aka epoch time, seconds from 1-1-1970
 
-#### 0x61 Read first-initialized timestamp ulong
+#### 0x61 Read first-initialized timestamp unsigned long
 
-#### 0x62 Read current timestamp ulong
+#### 0x62 Read current timestamp unsigned long
 
-#### 0x63 Read time since last sync ulong
+#### 0x63 Read time since last sync unsigned long
 
-#### 0x64 Read uptime ulong
+#### 0x64 Read uptime unsigned long
 
 #### 0x65 through 0xFF
 
