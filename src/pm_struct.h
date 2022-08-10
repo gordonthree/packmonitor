@@ -50,3 +50,38 @@ union doubleArray {
   uint8_t byteArray[4];
 };
 
+float raw2amps(uint32_t rawVal)
+{
+    float mvPa    = 0.136;  // 0.136v or 136mV per amp
+    float Amps    = 0.0;
+    float Volts   = 0.0;
+    float sysVcc  = 5.09;
+
+    Volts = (float)(rawVal * (sysVcc / 1024.0)) - (sysVcc / 2);
+    Amps =  (float)Volts / mvPa;
+
+    return Amps;
+}
+
+float raw2volts(uint32_t rawVal, float scale)
+{
+    float Volts   = 0.0;
+    float sysVcc  = 5.09;
+  
+    Volts = (float)(rawVal * (sysVcc / 1024.0)) / scale;
+    //Amps =  (float)Volts / acsmvA;
+    //adcDataBuffer[0].Amps  = Amps;
+    return Volts;
+}
+
+float raw2temp(uint32_t rawVal)
+{
+    float SeriesR    = 47000.0;
+    float Resistance = 0.0;
+    // convert to resistance
+    Resistance = (1024 / rawVal) - 1;
+    Resistance = SeriesR / Resistance;
+
+    return Resistance;
+}
+
