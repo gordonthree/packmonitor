@@ -188,16 +188,16 @@
 
 * (reserved)
 
-#### 0x60 Set time ulong
+#### 0x60 W/O Set time ulong
 
 * Tranfer time from master to slave
 * Expects unix timestamp, aka epoch time, seconds from 1-1-1970
 
-#### 0x61 Read first-initialized timestamp unsigned long
+#### 0x61 R/O first-initialized timestamp unsigned long
 
-#### 0x62 Read current timestamp unsigned long
+#### 0x62 R/O current timestamp unsigned long
 
-#### 0x63 Read time since last sync unsigned long
+#### 0x63 R/O time since last sync unsigned long
 
 #### 0x64 Read uptime unsigned long
 
