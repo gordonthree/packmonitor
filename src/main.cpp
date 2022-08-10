@@ -4,6 +4,7 @@
 #include <time.h>
 #include <TimeLib.h>
 #include <NAU7802.h>
+#include <I2C_eeprom.h>
 
 #include "pm_pins.h"
 #include "pm_struct.h"
@@ -35,7 +36,8 @@ volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store thre
 
 // PackMonLib  toolbox;                                     // collection of routines used by both client and host applications
 NAU7802     extAdc;                                      // NAU7802 ADC device
-FRAMSTORAGE fram(0x50, I2C_DEVICESIZE_24LC64);                                        // access the array for storing eeprom contents
+FRAMSTORAGE fram;                                        // access the array for storing eeprom contents
+I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);        // setup the eeprom here in the global scope
 
 char buff[200];                                          // temporary buffer for working with char strings
 int I2C_CLIENT_ADDR = 0x34;                              // base address, modified by pins PF0 / PF2
@@ -138,7 +140,7 @@ void setup() {
 
   extAdc.begin(0x2A);
 
-  FRAMStorage(0x50, I2C_DEVICESIZE_24LC64, &Wire);
+  fram.begin(ee_fram);
 }
 
 uint16_t      i=0;

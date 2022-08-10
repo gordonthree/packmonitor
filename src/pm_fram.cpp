@@ -7,10 +7,10 @@ FRAMSTORAGE::FRAMSTORAGE()
 }
 
 // read the eeprom into the buffer
-void FRAMSTORAGE::begin(TwoWire &_i2cwire)
+void FRAMSTORAGE::begin(I2C_eeprom &_ee_fram)
 {
-  ee_fram = I2C_eeprom(deviceAddress, deviceSize, &_i2cwire);   // setup eeprom address and size
-  ee_fram.begin();                                             // init eeprom library
+  ptr = &_ee_fram;
+  ptr->begin();                                             // init eeprom library
 }
 
 void FRAMSTORAGE::load()
@@ -18,7 +18,7 @@ void FRAMSTORAGE::load()
 {
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ee_fram.readBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    ptr->readBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
   }
 }
 
@@ -27,17 +27,9 @@ void FRAMSTORAGE::save()
 {
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ee_fram.writeBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    ptr->writeBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
   }
 }
-
-void FRAMSTORAGE::addUserData (uint8_t dataAddr, uint_least32_t ts, uint8_t * data); /* load userland byte array into buffer */
-{
-  fram_buffer[dataAddr].data.ts    = ts;
-  fram_buffer[dataAddr].data.array = data;
-  fram_buffer[dataAddr].data.count = (uint16_t) dataAddr + 1;
-}
-
 
 void FRAMSTORAGE::addArrayData(uint8_t dataAddr, uint8_t * byteArray)           /* load i2c data into buffer */
 {

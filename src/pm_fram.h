@@ -50,19 +50,18 @@ class FRAMSTORAGE
  
     EERECORD fram_buffer[70];
 
-    TwoWire *ptr;
+    I2C_eeprom *ptr;
 
     uint8_t  deviceAddress;
     uint32_t deviceSize;
 
   public:
-    FRAMSTORAGE(const uint8_t deviceAddress, const uint32_t deviceSize); // constructor 
+    FRAMSTORAGE();                                                       // empty constructor 
 
-    void begin (TwoWire &_i2c_connection);                               // setup i2c and fram connection
+    void begin (I2C_eeprom &_ee_fram);                                   // setup fram connection
     void load ();                                                        // fills buffer from fram
     void save ();                                                        // writes buffer to fram
 
-    void addUserData (uint8_t dataAddr, uint32_t ts, uint8_t * data);    // update array from userland data
     void addArrayData(uint8_t dataAddr, uint8_t * byteArray);            // update array with a raw byte array (from eeprom really)
 
     void addDouble   (uint8_t dataAddr, uint32_t ts, double doubleVal);  // update array with a double from userland
