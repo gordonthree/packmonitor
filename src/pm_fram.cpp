@@ -44,7 +44,6 @@ void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* 
 
   fram_buffer[dataAddr].data.ts    = ts;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  fram_buffer[dataAddr].data.count = (uint16_t) dataAddr + 1;
 }
 
 void FRAMSTORAGE::addUInt(uint8_t dataAddr, uint32_t ts, uint32_t uintVal) /* update array with a unsigned int from userland */
@@ -54,7 +53,6 @@ void FRAMSTORAGE::addUInt(uint8_t dataAddr, uint32_t ts, uint32_t uintVal) /* up
 
   fram_buffer[dataAddr].data.ts    = ts;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  fram_buffer[dataAddr].data.count = (uint16_t) dataAddr + 1;
 }
 
 void FRAMSTORAGE::addSInt(uint8_t dataAddr, uint32_t ts, int32_t intVal)   /* update array with a signed integer from userland */
@@ -63,20 +61,23 @@ void FRAMSTORAGE::addSInt(uint8_t dataAddr, uint32_t ts, int32_t intVal)   /* up
   buffer.longNumber                = intVal;
   fram_buffer[dataAddr].data.ts    = ts;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  fram_buffer[dataAddr].data.count = (uint16_t) dataAddr + 1;
 }
 
 void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* update array with a single byte from userland */
 {
   fram_buffer[dataAddr].data.ts       = ts;
   fram_buffer[dataAddr].data.array[0] = byteVal;
-  fram_buffer[dataAddr].data.count    = (uint16_t) dataAddr + 1;
+}
+
+void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, uint16_t rawVal)   /* update array with a raw adc data (16 bits) */
+{
+  fram_buffer[dataAddr].data.ts       = ts;     // update record timestamp
+  fram_buffer[dataAddr].data.raw      = rawVal; // update raw value
 }
 
 uint32_t FRAMSTORAGE::getTimeStamp(uint8_t dataAddr)                    // get the timestamp for this record
 {
-  uint32_t ts = fram_buffer[dataAddr].data.ts;
-  return ts;
+  return fram_buffer[dataAddr].data.ts;
 }
 
 
@@ -86,10 +87,9 @@ uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                   // retur
   return byteArray;
 }
 
-uint16_t FRAMSTORAGE::getCount(uint8_t dataAddr)                        // don't know what this would be useful for
+uint16_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
-  uint16_t cnt = fram_buffer[dataAddr].data.count;
-  return cnt;
+  return fram_buffer[dataAddr].data.count;
 }
 
 uint32_t FRAMSTORAGE::getDataUInt(uint8_t dataAddr)                 // convert byte array to unsigned int
@@ -110,13 +110,11 @@ double FRAMSTORAGE::getDataDouble (uint8_t dataAddr)                 // convert 
 {
   union doubleArray buffer;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-//   buffer.byteArray = fram_buffer[dataAddr].data.array;
   return buffer.doubleVal;
 }
 
 
 uint8_t FRAMSTORAGE::getDataByte(uint8_t dataAddr)                 // read one byte from byte array
 {
-  uint8_t byteVal = fram_buffer[dataAddr].data.array[0];
-  return byteVal;
+  return fram_buffer[dataAddr].data.array[0];;
 }

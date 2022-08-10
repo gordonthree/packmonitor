@@ -15,7 +15,7 @@ class FRAMSTORAGE
     {
     uint32_t ts;                             // Timestamp for when this record was created (4 bytes)
     uint8_t  array[4];                       // Data for this address
-    uint16_t count;                          // record number
+    uint16_t raw;                            // raw data storage (adc raw)
     } eedata;
 
     const int eedata_size = sizeof(eedata);  // save constant for size of eedata structure
@@ -68,10 +68,11 @@ class FRAMSTORAGE
     void addUInt     (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);  // update array with a unsigned int from userland
     void addSInt     (uint8_t dataAddr, uint32_t ts, int32_t intVal);    // update array with a signed integer from userland
     void addByte     (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);   // update array with a single byte from userland
+    void addRaw      (uint8_t dataAddr, uint32_t ts, uint16_t rawVal); // update array with raw adc data
 
     uint32_t  getTimeStamp  (uint8_t dataAddr);                          // get the timestamp for the record
     uint8_t * getByteArray  (uint8_t dataAddr);                          // return the raw byte array
-    uint16_t  getCount      (uint8_t dataAddr);                          // not sure why anyone needs this
+    uint16_t  getRaw        (uint8_t dataAddr);                          // get raw adc data
     uint32_t  getDataUInt   (uint8_t dataAddr);                          // transform byte array into usigned int
     double    getDataDouble (uint8_t dataAddr);                          // transform byte array into double precision (float)
     int32_t   getDataSInt   (uint8_t dataAddr);                          // transform byte array into signed int
