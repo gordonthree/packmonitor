@@ -138,7 +138,7 @@ void setup() {
   Wire.onRequest(&requestEvent); // register requestEvent interrupt handler
   Wire.onReceive(&receiveEvent); // register receiveEvent interrupt handler
 
-  extAdc.begin(0x2A);
+  extAdc.begin(0x2A, Wire);
 
   fram.begin(ee_fram);
 }
