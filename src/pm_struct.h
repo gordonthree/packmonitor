@@ -18,10 +18,8 @@ struct I2C_TX_DATA {
 struct ADC_DATA {
   uint8_t adcPin   = 0;                 // Arduino pin number?
   int32_t adcRaw   = 0;                 // raw value
-  int32_t adcMin   = 0;                 // raw value
-  int32_t adcMax   = 0;                 // raw value
-  float   Amps     = 0.0;               // formatted value
-  float   Volts    = 0.0;               // formatted value
+  int32_t rawMin   = 0;                 // raw value
+  int32_t rawMax   = 0;                 // raw value
 };
 
 struct DEBUG_MSGS {
@@ -50,4 +48,5 @@ union longArray
 union doubleArray {
   double doubleVal;
   uint8_t byteArray[4];
-}
+};
+
