@@ -50,7 +50,7 @@ union doubleArray {
   uint8_t byteArray[4];
 };
 
-float raw2amps(uint32_t rawVal)
+double raw2amps(uint32_t rawVal)
 {
     float mvPa    = 0.136;  // 0.136v or 136mV per amp
     float Amps    = 0.0;
@@ -63,7 +63,7 @@ float raw2amps(uint32_t rawVal)
     return Amps;
 }
 
-float raw2volts(uint32_t rawVal, float scale)
+double raw2volts(uint32_t rawVal, float scale)
 {
     float Volts   = 0.0;
     float sysVcc  = 5.09;
@@ -74,7 +74,7 @@ float raw2volts(uint32_t rawVal, float scale)
     return Volts;
 }
 
-float raw2temp(uint32_t rawVal)
+double raw2temp(uint32_t rawVal)
 {
     float SeriesR    = 47000.0;
     float Resistance = 0.0;
