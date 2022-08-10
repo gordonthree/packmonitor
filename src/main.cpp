@@ -21,9 +21,9 @@ volatile bool purgeTXBuffer    = true;                   // tell loop() to clear
 // volatile bool purgeRXBuffer    = true;                   // tell loop() to clear the RX buffer
 volatile char txtMessage[50];                            // alternate buffer for message from Host
 
-volatile uint8_t messageLen    = 0;                      // message from Host length
-volatile time_t lasttimeSync   = 0;                      // when's the last time Host sent us time?
-volatile time_t firsttimeSync  = 0;                      // record the timestamp after boot
+volatile uint8_t messageLen     = 0;                      // message from Host length
+volatile time_t  lasttimeSync   = 0;                      // when's the last time Host sent us time?
+volatile time_t  firsttimeSync  = 0;                      // record the timestamp after boot
 
 volatile DEBUG_MSGS dbgMsgs[10];                         // room for messages from inside isr to be printed outside
 volatile uint8_t    dbgMsgCnt  = 0;
@@ -144,14 +144,18 @@ void setup() {
 }
 
 uint16_t      i=0;
+uint16_t iFive = 0;
 uint16_t      x=0;
 uint8_t       ledX=0;
 uint8_t       adcUpdateCnt      = 0;
 const uint8_t adcUpdateInterval = 20;
-
+uint32_t      rawAdc            = 0;
+uint32_t      timeStamp         = 0;
 // the loop function runs over and over again forever
 void loop() {
   i++;
+  iFive++;
+  timeStamp = now();
   adcUpdateCnt++;
 
   digitalWrite(LED2, reqEvnt);
@@ -161,16 +165,19 @@ void loop() {
   if (purgeTXBuffer) clearTXBuffer(); 
   // if (purgeRXBuffer) clearRXBuffer();
 
-  if (adcUpdateCnt > adcUpdateInterval) {
-  
-
-    // save this stuff for reading current sensors
-    // Volts = (float)(rawAdc * (sysVcc / 1024.0)) - (sysVcc / 2);
-    // Amps =  (float)Volts / acsmvA;
-    
-    adcDataBuffer[0].adcRaw = readADC(ADC0, 20); // update in-memory value for local adc0
-    adcDataBuffer[1].adcRaw = readADC(ADC1, 20); // update in-memory value for local adc0
-    adcDataBuffer[2].adcRaw = readADC(ADC2, 20); // update in-memory value for local adc0
+  if (adcUpdateCnt > adcUpdateInterval) {     // read and store temperature data in the FRAM buffer
+    rawAdc = readADC(ADC0, 20); // update in-memory value for local adc0
+    fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, raw2temp(rawAdc));
+    rawAdc = readADC(ADC1, 20); // update in-memory value for local adc0
+    fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, raw2temp(rawAdc));
+    rawAdc = readADC(ADC2, 20); // update in-memory value for local adc0
+    fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, raw2temp(rawAdc));
+    rawAdc = readADC(ADC3, 20); // update in-memory value for local adc0
+    fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, raw2volts(rawAdc));
         
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
@@ -181,13 +188,24 @@ void loop() {
     Serial1.println(buff);
   }
 
-  if (i>1000){
+  if (i>1000) {                   // fires roughly every 1 second
     i=0;
     ledX = ledX ^ 1;              // xor previous state
     digitalWrite(LED1, ledX);     // turn the LED on and off to show program running
     
     recvEvnt = false; // reset flag
     reqEvnt  = false; // reset flag
+
+    // update uptime if clock has been set
+    if (firsttimeSync) fram.addUInt(PM_REGISTER_UPTIME, timestamp, timeStamp - firsttimeSync);
+
+    // update last time sync if needed
+    if (fram.getDataUInt(PM_REGISTER_TIMESYNC)<>lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
+  }
+
+  if (iFive>5000) {               // roughly every 5 seconds
+    fram.save;                    // write memory cache to fram for backup
+    iFive = 0;
   }
 
   if (dbgMsgCnt>0) { // display any debug messages generated inside the ISRs
@@ -408,7 +426,6 @@ void receiveEvent(size_t howMany) {
         HostsetTime = true;                                 // set flag
         lasttimeSync = _isr_timeStamp;                      // record timestamp of sync
         if (!firsttimeSync) firsttimeSync = _isr_timeStamp; // if it's our first sync, record in separate variable
-
         sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;
@@ -425,15 +442,18 @@ void receiveEvent(size_t howMany) {
       _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
     case 0x62: // read current timestamp, ulong (read only)
-      // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X sending %u", _isr_cmdAddr, _isr_timeStamp);
-      // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-      // dbgMsgCnt++;                                                        // increment debug message counter
       buffer.longNumber = _isr_timeStamp;
       memcpy(txData.cmdData, buffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x63: // read time since last sync, ulong (read only)
+      buffer.longNumber = lasttimeSync;
+      memcpy(txData.cmdData, buffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      _I2C_DATA_RDY = true;                                             // let loop know data is ready
+      break;
+    case 0x64: // read time since last sync, ulong (read only)
       buffer.longNumber = lasttimeSync;
       memcpy(txData.cmdData, buffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
