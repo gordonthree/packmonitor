@@ -220,7 +220,9 @@ void receiveEvent(size_t howMany) {
   recvEvnt                       = true;        // set flag to toggle LED in loop()
 
   while (Wire.available()) {
-    _isr_cmdData[_isr_dataLen] = Wire.read(); // keep reading until no more bytes available
+    _isr_HostByte = (uint8_t) Wire.read();
+    if (_isr_HostByte != 0xFF) 
+    _isr_cmdData[_isr_dataLen] = (uint8_t) Wire.read(); // keep reading until no more bytes available
     _isr_dataLen++;
   }
 
