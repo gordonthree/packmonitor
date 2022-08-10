@@ -89,7 +89,7 @@ uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                   // retur
 
 uint16_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
-  return fram_buffer[dataAddr].data.count;
+  return fram_buffer[dataAddr].data.raw;
 }
 
 uint32_t FRAMSTORAGE::getDataUInt(uint8_t dataAddr)                 // convert byte array to unsigned int
