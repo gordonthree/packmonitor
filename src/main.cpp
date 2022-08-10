@@ -32,42 +32,24 @@ volatile uint8_t    dbgMsgCnt  = 0;
 volatile I2C_TX_DATA txData;
 volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
 
-// class FRAMStorage;
-
-// PackMonLib  toolbox;                                     // collection of routines used by both client and host applications
 NAU7802     extAdc;                                      // NAU7802 ADC device
 FRAMSTORAGE fram;                                        // access the array for storing eeprom contents
 I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);        // setup the eeprom here in the global scope
 
 char buff[200];                                          // temporary buffer for working with char strings
 int I2C_CLIENT_ADDR = 0x34;                              // base address, modified by pins PF0 / PF2
+bool FirstRun = false;
 
 void scanI2C(void);
 
 void receiveEvent(size_t howMany);
 
-// uint16_t framLookupAddr     (uint8_t  cmdAddress);
-// uint32_t framReadUlong      (uint16_t dataAddress);
-// int32_t  framReadInt        (uint16_t dataAddress);
-// uint8_t  framReadByte       (uint16_t dataAddress);
-// double   framReadDouble     (uint16_t dataAddress);
-
-// void     framWriteUlong     (uint16_t dataAddress, uint32_t framData);
-// void     framWriteInt       (uint16_t dataAddress, int32_t  framData);
-// void     framWriteByte      (uint16_t dataAddress, uint8_t  framData);
-// void     framWriteDouble    (uint16_t dataAddress, double   framData);
-
 void clearTXBuffer(void);
-// void clearRXBuffer(void);
 
 int32_t   getLong            (uint8_t * byteArray);
 uint32_t  getULong           (uint8_t * byteArray);
 double    getDouble          (uint8_t * byteArray);
 long      readADC            (uint8_t adcPin, uint8_t noSamples);
-
-// uint8_t * setDouble          (double doubleVal);   // return byte array from double precision float
-// uint8_t * setULong           (uint32_t longNumber); // return byte array from unsigned long int
-// uint8_t * setLong            (int32_t longNumber);   // return byte array from signed long int
 
 // function that executes whenever data is requested by Host
 // this function is registered as an event, see setup()
@@ -141,6 +123,10 @@ void setup() {
   extAdc.begin(0x2A, Wire);
 
   fram.begin(ee_fram);
+
+  #ifdef PM_FIRSTRUN
+    FirstRun = true;
+  #endif
 }
 
 uint16_t      i=0;
@@ -162,23 +148,37 @@ void loop() {
   digitalWrite(LED3, recvEvnt);
   digitalWrite(LED4, HostsetTime);
 
+  if (timeSet && FirstRun) {
+    fram.addUInt(PM_REGISTER_FIRSTINITTIME, now(), now());
+    FirstRun = false;
+  }
+
   if (purgeTXBuffer) clearTXBuffer(); 
   // if (purgeRXBuffer) clearRXBuffer();
 
   if (adcUpdateCnt > adcUpdateInterval) {     // read and store temperature data in the FRAM buffer
+    Serial1.print("ADC 0: ")
     rawAdc = readADC(ADC0, 20); // update in-memory value for local adc0
+    Serial1.print(rawADC, DEC);
     fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);
     fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, raw2temp(rawAdc));
+    Serial1.print(" ADC 1: ")
     rawAdc = readADC(ADC1, 20); // update in-memory value for local adc0
+    Serial1.print(rawADC, DEC);
     fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);
     fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, raw2temp(rawAdc));
+    Serial1.print(" ADC 2: ")
     rawAdc = readADC(ADC2, 20); // update in-memory value for local adc0
+    Serial1.print(rawADC, DEC);
     fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);
     fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, raw2temp(rawAdc));
+    Serial1.print(" ADC 3: ")
     rawAdc = readADC(ADC3, 20); // update in-memory value for local adc0
+    Serial1.print(rawADC, DEC);
     fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);
     fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, raw2volts(rawAdc, 1.0)); // calculate volts from raw value and divider (1.0)
-        
+    Serial1.println("");
+
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
   
