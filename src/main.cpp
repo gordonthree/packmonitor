@@ -177,7 +177,7 @@ void loop() {
     fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, raw2temp(rawAdc));
     rawAdc = readADC(ADC3, 20); // update in-memory value for local adc0
     fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, raw2volts(rawAdc));
+    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, raw2volts(rawAdc, 1.0)); // calculate volts from raw value and divider (1.0)
         
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
@@ -197,14 +197,14 @@ void loop() {
     reqEvnt  = false; // reset flag
 
     // update uptime if clock has been set
-    if (firsttimeSync) fram.addUInt(PM_REGISTER_UPTIME, timestamp, timeStamp - firsttimeSync);
+    if (firsttimeSync) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
 
     // update last time sync if needed
-    if (fram.getDataUInt(PM_REGISTER_TIMESYNC)<>lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
+    if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
   }
 
   if (iFive>5000) {               // roughly every 5 seconds
-    fram.save;                    // write memory cache to fram for backup
+    fram.save();                    // write memory cache to fram for backup
     iFive = 0;
   }
 
