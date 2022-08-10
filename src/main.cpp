@@ -3,9 +3,9 @@
 // #include <packmonlib.h>
 #include <time.h>
 #include <TimeLib.h>
-#include <NAU7802.h>
 #include <I2C_eeprom.h>
 
+#include "NAU7802.h"
 #include "pm_pins.h"
 #include "pm_struct.h"
 #include "pm_fram.h"
