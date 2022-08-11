@@ -67,6 +67,21 @@
 
 * Bit 0 to 7: (reserved)
 
+#### 0x29 R/W current sensor mv/A value, double / float
+
+* Read or write the millivolts per amp scaling factor for the current sensor
+* Default 0.100 or 100mvA
+
+#### 0x2A R/W pack voltage divider scaling factor, double / float
+
+* Read or write the divsor for pack voltage sensing circuit
+* Default 0.33
+
+#### 0x2B R/W bus voltage divider scaling factor, double / float
+
+* Read or write the divor for the bus voltage sensing circuit
+* Default is 1.0
+  
 #### 0x2C R/O Read status0 bits, return byte
 
 * Bit 7: Config set
