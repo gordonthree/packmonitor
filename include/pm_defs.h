@@ -59,7 +59,7 @@
 #define PM_REGISTER_TIMESYNC            0x63 // elapsed time since last sync
 #define PM_REGISTER_UPTIME              0x64 // elapsed time since last power-on reset
 
-#define PM_CONFIG0_DISABLEPROTS         0x07 // set to disable al protections, monitor pack only
+#define PM_CONFIG0_DISABLEPROTS         0x07 // set to disable all protections, monitor pack only
 #define PM_CONFIG0_ENAOVRCURPROT        0x06 // set to enable over-current protection
 #define PM_CONFIG0_ENAOVRTMPPROT        0x05 // set to enable over-temp protection
 #define PM_CONFIG0_ENAUNDTMPPROT        0x04 // set to enable under-temp protection
