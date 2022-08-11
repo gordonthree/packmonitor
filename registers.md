@@ -79,7 +79,7 @@
 
 #### 0x2B R/W bus voltage divider scaling factor, double / float
 
-* Read or write the divor for the bus voltage sensing circuit
+* Read or write the divsor for the bus voltage sensing circuit
 * Default is 1.0
   
 #### 0x2C R/O Read status0 bits, return byte
