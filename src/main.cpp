@@ -48,6 +48,8 @@ char      buff[200];                                                // temporary
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
 
+void      printConfig        (void);                                // dump various config elements to serial port
+void      updateReadings     (void);                                // read various sensors and update memory
 void      scanI2C            (void);                                // scan local client bus
 void      receiveEvent       (size_t howMany);                      // triggered after address match with write bit set
 void      requestEvent       (void) ;                               // triggered after address match with read bit set
@@ -136,14 +138,19 @@ void setup() {
     FirstRun = true;
   #endif
 
-  fram.addByte(PM_REGISTER_STATUS0BYTE, 0, 0); // zero out the status byte;
-  fram.addByte(PM_REGISTER_STATUS1BYTE, 0, 0); // zero out the status byte;
-  }
+  uint8_t STATUS0 = 0;
+  uint8_t CONFIG0 = fram.getDataByte(PM_REGISTER_CONFIG0BYTE); // grab config0 byte
+  if (CONFIG0!=0) bitSet(CONFIG0, PM_STATUS0_CONFIGSET);       // if config0 is not zero, assume a config has been set, update status
+  fram.addByte(PM_REGISTER_STATUS0BYTE, 0, STATUS0);           // init status0
+  fram.addByte(PM_REGISTER_STATUS1BYTE, 0, 0);                 // init status1
 
-uint16_t      i=0;
-uint16_t iFive = 0;
-uint16_t      x=0;
-uint8_t       ledX=0;
+  printConfig();
+} // end setup()
+
+uint16_t      i                 = 0;
+uint16_t      iFive             = 0;
+uint16_t      x                 = 0;
+uint8_t       ledX              = 0;
 uint8_t       adcUpdateCnt      = 0;
 const uint8_t adcUpdateInterval = 100; // every 100 msec approximately
 uint32_t      rawAdc            = 0;
@@ -166,13 +173,15 @@ void loop() {
     byte xx=0x21; // start here
     while (xx<0x65) 
     {
-      Serial1.printf("Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %u\n",
+      Serial1.printf(
+        "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %u\n",
         xx,
         fram.getTimeStamp(xx), 
         fram.getDataDouble(xx),
         fram.getDataUInt(xx),
         fram.getDataSInt(xx),
-        fram.getRaw(xx));
+        fram.getRaw(xx)
+      );
       xx++;
     }
     Serial1.println("Complete.");
@@ -187,113 +196,10 @@ void loop() {
   if (purgeTXBuffer) clearTXBuffer(); 
 
   if (adcUpdateCnt > adcUpdateInterval) {   
-    double  vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
-    double  hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
-    double  loTemp       = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
-    double  vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
-    double  mvA          = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
-    uint8_t CONFIG0      = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);            // grab CONFIG0 byte from buffer
-    uint8_t STATUS0      = fram.getDataByte(PM_REGISTER_STATUS0BYTE);            // grab STATUS0 byte from buffer
-    uint8_t STATUS1      = fram.getDataByte(PM_REGISTER_STATUS1BYTE);            // grab STATUS0 byte from buffer
-    bool    tempError    = false;
-    bool    hiTalarm     = false;
-    bool    loTalarm     = false;
-    bool    tempWarn     = false;
-    bool    loVbus       = false;
-    bool    hiVbus       = false;
-    bool    hiTalarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAOVRTMPPROT);        // test if over-temp protection is enabled
-    bool    loTalarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAUNDTMPPROT);        // test if under-temp protection is enabled
-    // read and store temperature data in the FRAM buffer using internal ADC
-    rawAdc    = readADC(ADC1, 20);                                               // update in-memory value for internal adc1
-    rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
-    fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);                      // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, rawDouble);                // use LUT to find approximate temperature
-    
-    if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
-      tempError = true;                                                          // set temperature error flag if temp outside rational limits
-    } else {                                                                     // temp seems normal, check conditions
-      if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
-      if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
-      if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn = true;     // set a warning if temp is within two degrees high or low
-    }
-
-    rawAdc = readADC(ADC2, 20); // update in-memory value for internal adc2
-    rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
-    fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);                      // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, rawDouble);                // use LUT to find approximate temperature
-
-    if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
-      tempError = true;                                                          // set temperature error flag if temp outside rational limits
-    } else {                                                                     // temp seems normal, check conditions
-      if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
-      if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
-      if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn  = true;    // set a warning if temp is within two degrees high or low
-    }
-
-    rawAdc = readADC(ADC3, 20); // update in-memory value for internal adc3
-    rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
-    fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);                      // store unprocessed raw value 
-    fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, rawDouble);                // use LUT to find approximate temperature
-
-    if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
-      tempError = true;                                                          // set temperature error flag if temp outside rational limits
-    } else {                                                                     // temp seems normal, check conditions
-      if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
-      if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
-      if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn  = true;    // set a warning if temp is within two degrees high or low
-    }
-
-    if (tempError) bitSet(STATUS0, PM_STATUS0_RANGETSNS);                        // set status flag if needed
-    if (tempWarn)  bitSet(STATUS0, PM_STATUS0_WARNTEMP);                         // set status flag if needed
-    if (hiTalarm)  hiTalarm_cnt++;                                               // increment high alarm counter
-    if (loTalarm)  loTalarm_cnt++;                                               // increment low temp alarm counter
-
-    if (hiTalarm_cnt > tAlarm_threshold || loTalarm_cnt > tAlarm_threshold) {    // take action on temperature alarm
-      Serial1.printf("%u: Temperature alarm!\n", timeStamp);
-    }
-    
-    if (tempError) {
-      Serial1.printf("%u: Temperature sensor out of range!\n", timeStamp);
-    }
-
-    rawAdc = readADC(ADC0, 20);                                                  // read bus voltage from internal adcd
-    rawDouble = raw2volts(rawAdc, vBusDiv);                                         // convert raw value into double
-    fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);                    // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);              // store voltage in buffer
-
-    if (rawDouble<4.70) bitSet(STATUS1, PM_STATUS1_VBUSLOW);                     // set low bus voltage status bit
-    if (rawDouble>5.10) bitSet(STATUS1, PM_STATUS1_VBUSHIGH);                     // set low bus voltage status bit
-
-    // Serial1.println("");
-    // Serial1.printf("ADC 1: %.2f ADC 2: %.2f ADC 3: %.2f ADC 0: %.2f\n", 
-    //   fram.getDataDouble(PM_REGISTER_READDEGCT0),
-    //   fram.getDataDouble(PM_REGISTER_READDEGCT1),
-    //   fram.getDataDouble(PM_REGISTER_READDEGCT2),
-    //   fram.getDataDouble(PM_REGISTER_READBUSVOLTS));
-    // Serial1.printf("ADC 1: %u ADC 2: %u ADC 3: %u ADC 0: %u\n", 
-    //   fram.getRaw(PM_REGISTER_READDEGCT0),
-    //   fram.getRaw(PM_REGISTER_READDEGCT1),
-    //   fram.getRaw(PM_REGISTER_READDEGCT2),
-    //   fram.getRaw(PM_REGISTER_READBUSVOLTS));
-
-    
-    extAdc.selectCh1();                                               // current sensor on adc ch1
-    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
-    rawDouble = extAdc.readmV() / 1000.0;                             // get voltage as double
-    
-    // fram.addRaw(reg, tS, rawAdc);        // store raw value in buffer
-    // fram.addDouble(reg, tS, raw2amps(rawDouble));  // store processed value in buffer
-
-    extAdc.selectCh2();                                              // vpack divider on adc ch2
-    rawAdc    = extAdc.readADC();                                    // get raw 24-bit value
-    rawDouble = extAdc.readmV() / vPackDiv;                              // get voltage as double
-    
-    // fram.addRaw(reg, tS, rawAdc);                                    // store raw value in buffer
-    // fram.addDouble(reg, tS, rawDouble);                              // store processed value in buffer
-
+    updateReadings();
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
-    
+  
   // debug print
   // Serial1.printf("extADC 1: %f (%u) ADC 2: %f (%u)\n", 
   //   fram.getDataDouble(PM_REGISTER_READPACKVOLTS)/1000.0,
@@ -346,6 +252,192 @@ void loop() {
   delay(1);
 }
 
+void updateReadings() {
+  double  vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
+  double  hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
+  double  loTemp       = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
+  double  vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+  double  vPackLow     = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
+  double  vPackHigh    = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
+  double  iLoadHigh    = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
+  double  mvA          = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
+
+  uint8_t CONFIG0      = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);            // grab CONFIG0 byte from buffer
+  uint8_t STATUS0      = fram.getDataByte(PM_REGISTER_STATUS0BYTE);            // grab STATUS0 byte from buffer
+  uint8_t STATUS1      = fram.getDataByte(PM_REGISTER_STATUS1BYTE);            // grab STATUS0 byte from buffer
+  bool    packVerror   = false;
+  bool    loadIerror   = false;
+  bool    tempError    = false;
+  bool    hiTalarm     = false;
+  bool    loTalarm     = false;
+  bool    packVwarn    = false;                                                // warning for nearing low pack voltage
+  bool    hiIwarn      = false;                                                // warning for nearing high current limit
+  bool    tempWarn     = false;
+  bool    loVbus       = false;
+  bool    hiVbus       = false;
+  bool    loVpack      = false;
+  bool    hiVpack      = false;
+  bool    hiIload      = false;
+  bool    hiTalarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAOVRTMPPROT);        // test if over-temp protection is enabled
+  bool    loTalarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAUNDTMPPROT);        // test if under-temp protection is enabled
+  bool    loValarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_EMAUNDVLTPROT);        // test if under-temp protection is enabled
+  bool    hiValarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAOVRVLTPROT);        // test if under-temp protection is enabled
+  bool    hiAalarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAOVRCURPROT);        // test if under-temp protection is enabled
+  bool    alarmDisable = bit_is_set(CONFIG0, PM_CONFIG0_DISABLEPROTS);         // test if under-temp protection is enabled
+  
+    rawAdc    = readADC(ADC1, 20);                                               // update in-memory value for internal adc1
+  rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
+  fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);                      // store unprocessed raw value
+  fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, rawDouble);                // use LUT to find approximate temperature
+  
+  if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
+    tempError = true;                                                          // set temperature error flag if temp outside rational limits
+  } else {                                                                     // temp seems normal, check conditions
+    if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
+    if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
+    if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn = true;     // set a warning if temp is within two degrees high or low
+  }
+
+  rawAdc = readADC(ADC2, 20); // update in-memory value for internal adc2
+  rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
+  fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);                      // store unprocessed raw value
+  fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, rawDouble);                // use LUT to find approximate temperature
+
+  if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
+    tempError = true;                                                          // set temperature error flag if temp outside rational limits
+  } else {                                                                     // temp seems normal, check conditions
+    if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
+    if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
+    if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn = true;    // set a warning if temp is within two degrees high or low
+  }
+
+  rawAdc = readADC(ADC3, 20); // update in-memory value for internal adc3
+  rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
+  fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);                      // store unprocessed raw value 
+  fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, rawDouble);                // use LUT to find approximate temperature
+
+  if (rawDouble>70.0 || rawDouble<-30.0) {                                     // test for temperature sensor error    
+    tempError = true;                                                          // set temperature error flag if temp outside rational limits
+  } else {                                                                     // temp seems normal, check conditions
+    if (rawDouble>hiTemp)                                 hiTalarm = true;     // set high temp alarm if temp exceeds limit
+    if (rawDouble<loTemp)                                 loTalarm = true;     // set low temp alarm if temp exceeds limit
+    if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn = true;    // set a warning if temp is within two degrees high or low
+  }
+
+  if (tempError) bitSet(STATUS0, PM_STATUS0_RANGETSNS);                        // set status flag if needed
+  if (tempWarn)  bitSet(STATUS0, PM_STATUS0_WARNTEMP);                         // set status flag if needed
+  if (hiTalarm)  hiTalarm_cnt++;                                               // increment high alarm counter
+  if (loTalarm)  loTalarm_cnt++;                                               // increment low temp alarm counter
+
+  if (tempError) {
+    Serial1.printf("%lu: ERROR: Temperature sensor out of range\n", timeStamp);
+    tempError = false;
+  }
+
+  if (tempWarn) {
+    Serial1.printf("%lu: WARN: Temperature sensor near threshold\n", timeStamp);
+    tempWarn = false;
+  }
+
+  rawAdc = readADC(ADC0, 20);                                                  // read bus voltage from internal adcd
+  rawDouble = raw2volts(rawAdc, vBusDiv);                                      // convert raw value into double
+  fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);                    // store unprocessed raw value
+  fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);              // store voltage in buffer
+
+  if (rawDouble<4.70) bitSet(STATUS1, PM_STATUS1_VBUSLOW);                     // set low bus voltage status bit
+  if (rawDouble>5.10) bitSet(STATUS1, PM_STATUS1_VBUSHIGH);                    // set low bus voltage status bit
+
+  // Serial1.println("");
+  // Serial1.printf("ADC 1: %.2f ADC 2: %.2f ADC 3: %.2f ADC 0: %.2f\n", 
+  //   fram.getDataDouble(PM_REGISTER_READDEGCT0),
+  //   fram.getDataDouble(PM_REGISTER_READDEGCT1),
+  //   fram.getDataDouble(PM_REGISTER_READDEGCT2),
+  //   fram.getDataDouble(PM_REGISTER_READBUSVOLTS));
+  // Serial1.printf("ADC 1: %u ADC 2: %u ADC 3: %u ADC 0: %u\n", 
+  //   fram.getRaw(PM_REGISTER_READDEGCT0),
+  //   fram.getRaw(PM_REGISTER_READDEGCT1),
+  //   fram.getRaw(PM_REGISTER_READDEGCT2),
+  //   fram.getRaw(PM_REGISTER_READBUSVOLTS));
+  
+  extAdc.selectCh1();                                                          // current sensor on adc ch1
+  rawAdc    = extAdc.readADC();                                                // get raw 24-bit value
+  rawDouble = extAdc.readmV() / mvA;                                           // get current, divide millivolts by millivolts per amp
+  fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                    // store data
+  fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);              // store amps value in memory
+
+  if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                      // Current sense near high limit
+  if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                      // Current sense beyond high limit
+  if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                   // Current sense is out of range, malfunction
+
+  if (hiIwarn) {
+    Serial1.printf("%lu WARN: Load current near threshold (%.2f)\n", timeStamp, rawDouble);
+    bitSet(STATUS0, PM_STATUS0_WARNCURRENT);
+    hiIwarn = false; // clear warning
+  }
+
+  if (loadIerror) {
+    Serial1.printf("%lu: ERROR: Load current sensor out of range (%.2f)\n", timeStamp, rawDouble);
+    bitSet(STATUS0, PM_STATUS0_RANGEISNS);
+    loadIerror = false; // clear error
+  }
+
+  extAdc.selectCh2();                                                             // vpack divider on adc ch2
+  rawAdc    = extAdc.readADC();                                                   // get raw 24-bit value
+  rawDouble = extAdc.readmV() / vPackDiv;                                         // get voltage as double
+  fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                      // store data
+  fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);                // store data
+
+  if (rawDouble<vPackLow)                                      loValarm_cnt++;    // increase count for low voltage alarm
+  if (rawDouble>vPackHigh)                                     hiValarm_cnt++;    // increase count for high voltage alarm
+  if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25) packVwarn = true;  // voltage near threshold
+  if (rawDouble<8.0 || rawDouble>20.0)                         packVerror = true; // voltage out of bounds
+
+  if (packVerror) {
+    Serial1.printf("%lu: ERROR: Pack voltage sensor out of range (%.3f)\n", timeStamp, rawDouble);
+    bitSet(STATUS0, PM_STATUS0_RANGEISNS);
+    packVerror = false; // clear error
+  }
+
+  if (packVwarn) {
+    Serial1.printf("%lu: WARN: Pack voltage near threshold (%.3f)\n", timeStamp, rawDouble);
+    bitSet(STATUS0, PM_STATUS0_RANGEISNS);
+    packVwarn = false; // clear warning
+  }
+
+  // *** TODO alarms section
+  if (!alarmDisable) {                                                            // user can disable alarms
+    if (hiIalarm_cnt>iAlarm_threshold) {
+      Serial1.printf("%lu: ALARM: Current exceeding threshold!\n", timeStamp);
+      hiIalarm_cnt = 0; // reset alarm
+    }
+
+    if (hiTalarm_cnt>tAlarm_threshold ) {        // take action on temperature alarm
+      Serial1.printf("%lu: ALARM: Pack temperature is too high!\n", timeStamp);
+      hiTalarm = false;
+    }
+
+    if (loTalarm_cnt>tAlarm_threshold) {        // take action on temperature alarm
+      Serial1.printf("%lu: ALARM: Pack temperature is too low!\n", timeStamp);
+      loTalarm = false;
+    }
+
+    if (loValarm_cnt>vAlarm_threshold) { // handle low pack voltage alarm condition
+      Serial1.printf("%lu: ALARM: Pack voltage too low!\n", timeStamp);
+      loValarm_cnt=0; // reset alarm
+    }
+
+    if (hiValarm_cnt>vAlarm_threshold) { // handle high pack voltage alarm condition
+      Serial1.printf("%u: ALARM: Pack voltage too high!\n", timeStamp);
+      hiValarm_cnt=0; // reset alarm
+    }
+  }
+
+  // fram.addRaw(reg, tS, rawAdc);                                    // store raw value in buffer
+  // fram.addDouble(reg, tS, rawDouble);                              // store processed value in buffer
+
+
+
+}
 // function that executes whenever data is received from Host
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
@@ -728,3 +820,23 @@ int32_t getLong(uint8_t * byteArray)
   return buffer.longNumber;
 }
 
+void printConfig(){
+  double  vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
+  double  hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
+  double  loTemp       = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
+  double  vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+  double  vPackLow     = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
+  double  vPackHigh    = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
+  double  iLoadHigh    = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
+  double  mvA          = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
+  uint8_t CONFIG0      = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
+
+  Serial1.printf("CONFIG0 0x%X\n", CONFIG0);
+  Serial1.printf("Current limit %f\n", iLoadHigh);
+  Serial1.printf("Low voltaget %f\n", vPackLow);
+  Serial1.printf("High voltage %f\n", vPackHigh);
+  Serial1.printf("Low temp %f\n", loTemp);
+  Serial1.printf("High temp %f\n", hiTemp);
+  Serial1.printf("vBusDiv %f\n", vBusDiv);
+  Serial1.printf("mvA %f\n", mvA);
+}
