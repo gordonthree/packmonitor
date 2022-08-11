@@ -74,12 +74,12 @@
 
 #### 0x2A R/W pack voltage divider scaling factor, double / float
 
-* Read or write the divsor for pack voltage sensing circuit
+* Read or write the divisor for pack voltage sensing circuit
 * Default 0.33
 
 #### 0x2B R/W bus voltage divider scaling factor, double / float
 
-* Read or write the divsor for the bus voltage sensing circuit
+* Read or write the divisor for the bus voltage sensing circuit
 * Default is 1.0
   
 #### 0x2C R/O Read status0 bits, return byte
@@ -95,7 +95,13 @@
 
 #### 0x2D R/O Read status1 bits
 
-#### 0x2E through 0x2F
+* (reserved)
+  
+#### 0x2E R/W scaling number for thermistor divider circuit
+
+* Read or write the scaling factor / divisor for the thermistor circuits
+  
+#### 0x2F
 
 * (reserved)
 

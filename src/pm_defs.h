@@ -13,6 +13,7 @@
 #define PM_REGISTER_VBUSDIVISOR         0x2B // read / write bus voltage sense divisor
 #define PM_REGISTER_STATUS0BYTE         0x2C // read status0 register byte
 #define PM_REGISTER_STATUS1BYTE         0x2D // read status1 register byte
+#define PM_REGISTER_THERMDIVISOR        0x2E // read / write thermistor scaling factor
 #define PM_REGISTER_CLEARCOLCNTR        0x30 // clear coulomb counter
 #define PM_REGISTER_READCOLCNTR         0x31 // read coulomb counter
 #define PM_REGISTER_CLEARAMPSCNTRS      0x32 // clear amperage counters
