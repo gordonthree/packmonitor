@@ -13,22 +13,22 @@ class FRAMSTORAGE
 
     typedef struct  
     {
-    uint32_t ts;                             // Timestamp for when this record was created (4 bytes)
-    uint8_t  array[4];                       // Data for this address
-    uint16_t raw;                            // raw data storage (adc raw)
+    uint32_t ts;                                             // Timestamp for when this record was created (4 bytes)
+    uint8_t  array[4];                                       // Data for this address
+    uint32_t raw;                                            // raw data storage (adc raw)
     } eedata;
 
-    const int eedata_size = sizeof(eedata);  // save constant for size of eedata structure
+    static const int eedata_size = sizeof(eedata);           // save constant for size of eedata structure
 
-    union EERECORD                           // create union that converts custom structure into byte array
+    union EERECORD                                           // create union that converts custom structure into byte array
     {
-    eedata  data;                            // userland data
-    uint8_t byteArray[10];                   // byte array to send over i2c or store in fram
+    eedata  data;                                            // userland data
+    uint8_t byteArray[eedata_size];                          // byte array to send over i2c or store in fram
     } ;
 
-    const uint16_t ee_buffer_size = 70;      // number of recordds in the buffer array
-    const uint16_t ee_record_size = sizeof(EERECORD);
-    const uint16_t ee_start_byte  = 0x64;    // eeprom offset is 100 bytes (0x64), save that space for other uses
+    static const uint16_t ee_buffer_size = 70;               // number of recordds in the buffer array
+    static const uint16_t ee_record_size = sizeof(EERECORD); // calculate size of a record in bytes
+    const uint16_t ee_start_byte  = 0x64;                    // eeprom offset is 100 bytes (0x64), save that space for other uses
 
     union longArray
     {
@@ -48,7 +48,7 @@ class FRAMSTORAGE
     uint8_t byteArray[4];
     };    
  
-    EERECORD fram_buffer[70];
+    EERECORD fram_buffer[ee_buffer_size];
 
     I2C_eeprom *ptr;
 
