@@ -32,35 +32,35 @@ void FRAMSTORAGE::save()
 }
 
 void FRAMSTORAGE::addArrayData(uint8_t dataAddr, uint8_t * byteArray)           /* load i2c data into buffer */
-{
-  memcpy(byteArray, fram_buffer[dataAddr].byteArray, 4);
+{ // memcpy(dst, src, len)
+  memcpy(fram_buffer[dataAddr].byteArray, byteArray, 4);
 }
 
 
 void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* update array with a double from userland */
-{
+{ // memcpy(dst, src, len)
   union doubleArray buffer;
   buffer.doubleVal = doubleVal;
 
   fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addUInt(uint8_t dataAddr, uint32_t ts, uint32_t uintVal) /* update array with a unsigned int from userland */
-{
+{ // memcpy(dst, src, len)
   union ulongArray buffer;
   buffer.longNumber = uintVal;
 
   fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addSInt(uint8_t dataAddr, uint32_t ts, int32_t intVal)   /* update array with a signed integer from userland */
-{
+{ // memcpy(dst, src, len)
   union longArray buffer;
   buffer.longNumber                = intVal;
   fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* update array with a single byte from userland */
@@ -93,21 +93,21 @@ uint16_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't k
 }
 
 uint32_t FRAMSTORAGE::getDataUInt(uint8_t dataAddr)                 // convert byte array to unsigned int
-{
+{ // memcpy(dst, src, len)
   union ulongArray buffer;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
   return buffer.longNumber;
 }
 
 int32_t FRAMSTORAGE::getDataSInt(uint8_t dataAddr)                  // convert byte array to signed int
-{
+{ // memcpy(dst, src, len)
   union longArray buffer;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
   return buffer.longNumber;
 }
 
 double FRAMSTORAGE::getDataDouble (uint8_t dataAddr)                 // convert byte array to double precision
-{
+{ // memcpy(dst, src, len)
   union doubleArray buffer;
   memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
   return buffer.doubleVal;
