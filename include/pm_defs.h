@@ -75,3 +75,6 @@
 #define PM_STATUS0_RANGETSNS            0x02 // set when temperature sensor value is out of range
 #define PM_STATUS0_RANGEISNS            0x01 // set when current sensor value is out of range
 #define PM_STATUS0_RANGEVSNS            0x00 // set when voltage sensor value is out of range
+
+#define PM_STATUS1_VBUSLOW              0x00 // set when bus voltage is too low
+#define PM_STATUS1_VBUSHIGH             0x01 // set when bus voltage is too high

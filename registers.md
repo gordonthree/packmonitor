@@ -95,7 +95,14 @@
 
 #### 0x2D R/O Read status1 bits
 
-* (reserved)
+* Bit 7: (reserved)
+* Bit 6: (reserved)
+* Bit 5: (reserved)
+* Bit 4: (reserved)
+* Bit 3: (reserved)
+* Bit 2: (reserved)
+* Bit 1: V-bus voltage high
+* Bit 0: V-bus voltage low
   
 #### 0x2E R/W scaling number for thermistor divider circuit
 
