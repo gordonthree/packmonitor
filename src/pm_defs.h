@@ -5,7 +5,7 @@
 #define PM_REGISTER_LOWTEMPLIMIT        0x23 // read / write low temperature cut off register
 #define PM_REGISTER_HIGHVOLTLIMIT       0x24 // read / write high voltage cut off register
 #define PM_REGISTER_LOWVOLTLIMIT        0x25 // read / writte low voltage cut off register
-#define PM_REGISTER_CONFIGB0YTE         0x26 // read / write concig0 register
+#define PM_REGISTER_CONFIG0BYTE         0x26 // read / write concig0 register
 #define PM_REGISTER_CONFIG1BYTE         0x27 // read / write config1 register
 #define PM_REGISTER_CONFIG2BYTE         0x28 // read / write config2 register
 #define PM_REGISTER_CURRENTMVA          0x29 // read / write current sensor mva value
