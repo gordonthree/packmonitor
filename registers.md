@@ -86,7 +86,7 @@
 
 * Bit 7: Config set
 * Bit 6: Time set
-* Bit 5: Temperature warning (within 3 deg of limits)
+* Bit 5: Temperature warning (within 2 deg of limits)
 * Bit 4: Current warning (within 1 amps of limit)
 * Bit 3: Voltage warning (within 250mV of limits)
 * Bit 2: T-sense out of range
