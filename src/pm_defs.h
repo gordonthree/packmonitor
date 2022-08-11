@@ -8,6 +8,9 @@
 #define PM_REGISTER_CONFIGB0YTE         0x26 // read / write concig0 register
 #define PM_REGISTER_CONFIG1BYTE         0x27 // read / write config1 register
 #define PM_REGISTER_CONFIG2BYTE         0x28 // read / write config2 register
+#define PM_REGISTER_CURRENTMVA          0x29 // read / write current sensor mva value
+#define PM_REGISTER_VPACKDIVISOR        0X2A // read / write pack voltage sense divisor
+#define PM_REGISTER_VBUSDIVISOR         0x2B // read / write bus voltage sense divisor
 #define PM_REGISTER_STATUS0BYTE         0x2C // read status0 register byte
 #define PM_REGISTER_STATUS1BYTE         0x2D // read status1 register byte
 #define PM_REGISTER_CLEARCOLCNTR        0x30 // clear coulomb counter
