@@ -40,20 +40,16 @@ char buff[200];                                          // temporary buffer for
 int I2C_CLIENT_ADDR = 0x34;                              // base address, modified by pins PF0 / PF2
 bool FirstRun = false;
 
-void scanI2C(void);
-
-void receiveEvent(size_t howMany);
-
-void clearTXBuffer(void);
-
-int32_t   getLong            (uint8_t * byteArray);
-uint32_t  getULong           (uint8_t * byteArray);
-double    getDouble          (uint8_t * byteArray);
-long      readADC            (uint8_t adcPin, uint8_t noSamples);
-
-// function that executes whenever data is requested by Host
-// this function is registered as an event, see setup()
-void requestEvent(void) ;
+void      scanI2C            (void);                                // scan local client bus
+void      receiveEvent       (size_t howMany);                      // triggered after address match with write bit set
+void      requestEvent       (void) ;                               // triggered after address match with read bit set
+void      clearTXBuffer      (void);                                // reset transmit buffer to null
+void      updateIload        (uint8_t reg);                         // read external adc channel, store results in buffer
+void      updateVpack        (uint8_t chan, uint8_t reg);           // read external adc channel, store results in buffer
+int32_t   getLong            (uint8_t * byteArray);                 // convert byte array to signed int
+uint32_t  getULong           (uint8_t * byteArray);                 // convert byte array to unsigned int
+double    getDouble          (uint8_t * byteArray);                 // convert byte array to double
+uint32_t  readADC            (uint8_t adcPin, uint8_t noSamples);   // return value from internal ADC
 
 #if defined(MCU_AVR128DA32)
   //HardwareI2C &i2c_host = TWI1;
@@ -205,20 +201,8 @@ void loop() {
     //   fram.getRaw(PM_REGISTER_READDEGCT2),
     //   fram.getRaw(PM_REGISTER_READBUSVOLTS));
 
-
-    extAdc.selectCh1();                                               // select ext adc channel 1
-    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
-    rawDouble = extAdc.readmV();                                      // get voltage as double
-    
-    fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);        // store raw value in buffer
-    fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);  // store processed value in buffer
-
-    extAdc.selectCh2();                                               // select ext adc channel 2
-    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
-    rawDouble = extAdc.readmV() / 1000.0;                             // get voltage as double
-      
-    fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);         // store raw value in buffer
-    fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);   // store processed value in buffer
+    updateExtAdc(1, PM_REGISTER_READPACKVOLTS);
+    updateExtAdc(2, PM_REGISTER_READLOADAMPS);
 
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
@@ -336,17 +320,34 @@ void receiveEvent(size_t howMany) {
       if (_isr_dataLen>0) // check if this is a read or write?
       // more than 0 bytes available, this is a write
       {
-        _isr_HostByte    = _isr_cmdData[0];                         // single byte!
+        _isr_HostByte = _isr_cmdData[0];                         // single byte!
         fram.addByte(_isr_cmdAddr, _isr_timeStamp, _isr_HostByte);  // save to buffer
       }
       else
       {
         txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
-        txData.dataLen    = 1;                                      // single byte to send
+        txData.dataLen = 1;                                         // single byte to send
         _I2C_DATA_RDY = true;                                       // let loop know data is ready
       }
       break;
-
+    case 0x29: // r/w current sensor mva, double
+    case 0x2A: // r/w pack voltage divisor, double
+    case 0x2B: // r/w bus voltage divisor, double
+    case 0x2E: // r/w thermistor scaling value, double
+      if (_isr_dataLen>0) // check if this is a read or write?
+      // more than 0 bytes available, this is a write
+      {
+        _isr_HostDouble = getDouble(_isr_cmdData);                        // convert host byte array into double
+        fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store double in memory buffer
+      }
+      else
+      // no data was sent, this is a read
+      {
+        memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+        txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+        _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      }
+      break;
     case 0x2C: // read status1, byte (read only)
     case 0x2D: // read status2, byte (read only)
       txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
@@ -589,7 +590,7 @@ void scanI2C() {
  
 } // end of scani2c
 
-long readADC(uint8_t adcPin, uint8_t noSamples) {
+uint32_t readADC(uint8_t adcPin, uint8_t noSamples) {
   uint32_t adcResult = 0;
   int      sample    = 0;
   uint8_t  adcX      = 0;
@@ -640,3 +641,35 @@ int32_t getLong(uint8_t * byteArray)
 
   return buffer.longNumber;
 }
+
+void updateVpack(uint8_t chan, uint8_t reg)                          // read external adc channel, store results in buffer
+{
+    uint32_t tS = now();
+    uint32_t rawAdc = 0;
+    double rawDouble = 0.0;
+    double vDiv = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+
+    extAdc.selectCh2();                                              // vpack divider on adc ch2
+    rawAdc    = extAdc.readADC();                                    // get raw 24-bit value
+    rawDouble = extAdc.readmV() / vDiv;                              // get voltage as double
+    
+    fram.addRaw(reg, tS, rawAdc);                                    // store raw value in buffer
+    fram.addDouble(reg, tS, rawDouble);                              // store processed value in buffer
+}
+
+void updateIload(uint8_t reg)                                        // read external adc channel, store results in buffer
+{
+    uint32_t tS = now();
+    uint32_t rawAdc = 0;
+    double rawDouble = 0.0;
+    double vDiv = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+    
+    extAdc.selectCh1();                                               // current sensor on adc ch1
+    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
+    rawDouble = extAdc.readmV() / vDiv;                               // get voltage as double
+    
+    fram.addRaw(reg, tS, rawAdc);        // store raw value in buffer
+    fram.addDouble(reg, tS, raw2amps rawDouble);  // store processed value in buffer
+}
+
+void checkParameters
