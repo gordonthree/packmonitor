@@ -90,8 +90,6 @@ void setup() {
 
   delay(2000);
   Serial1.println("\n\nHello, world!");
-
-  Serial1.print("Loading data from FRAM... ");
   
   // setup i2c bus(es) dedpending on what chip we are compiling for
   #if defined(MCU_AVR128DA32)                  // Setup both TWO0 and TWI1
@@ -120,9 +118,16 @@ void setup() {
   Wire.onRequest(&requestEvent); // register requestEvent interrupt handler
   Wire.onReceive(&receiveEvent); // register receiveEvent interrupt handler
 
-  extAdc.begin(0x2A, Wire);
+  extAdc.begin(0x2A, Wire);      // pass through TWI to adc library
+  extAdc.
+  extAdc.avcc4V5();              // set voltage regulator output and analog reference to internal at 4.5v
+  extAdc.rate320sps();           // set conversion rate to 320sps
+
+  Serial1.print("Loading data from FRAM... ");
 
   fram.begin(ee_fram);
+
+  Serial1.print("complete.\n");
 
   #ifdef PM_FIRSTRUN
     FirstRun = true;
@@ -137,6 +142,8 @@ uint8_t       adcUpdateCnt      = 0;
 const uint8_t adcUpdateInterval = 20;
 uint32_t      rawAdc            = 0;
 uint32_t      timeStamp         = 0;
+double        rawDouble         = 0.0;
+
 // the loop function runs over and over again forever
 void loop() {
   i++;
@@ -173,7 +180,8 @@ void loop() {
 
   if (purgeTXBuffer) clearTXBuffer(); 
 
-  if (adcUpdateCnt > adcUpdateInterval) {     // read and store temperature data in the FRAM buffer
+  if (adcUpdateCnt > adcUpdateInterval) {     
+    // read and store temperature data in the FRAM buffer using internal ADC
     rawAdc = readADC(ADC1, 20); // update in-memory value for local adc0
     fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);
     fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, raw2temp(rawAdc));
@@ -197,6 +205,26 @@ void loop() {
     //   fram.getRaw(PM_REGISTER_READDEGCT1),
     //   fram.getRaw(PM_REGISTER_READDEGCT2),
     //   fram.getRaw(PM_REGISTER_READBUSVOLTS));
+
+    extAdc.selectCh1();
+    rawAdc    = extAdc.readADC(); // get raw value
+    rawDouble = extAdc.readmV();
+    
+    fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);
+
+    extAdc.selectCh2();
+    rawAdc    = extAdc.readADC(); // get raw value
+    rawDouble = extAdc.readmV();
+    
+    fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);
+    fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);
+    
+    Serial1.printf("extADC 1: %f (%u) ADC 2: %f (%u)\n", 
+      fram.getDataDouble(PM_REGISTER_READPACKVOLTS)/1000.0,
+      fram.getRaw(PM_REGISTER_READPACKVOLTS),
+      fram.getDataDouble(PM_REGISTER_READLOADAMPS)/1000.0,
+      fram.getRaw(PM_REGISTER_READLOADAMPS));
 
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
