@@ -70,7 +70,7 @@
 #### 0x29 R/W current sensor mv/A value, double / float
 
 * Read or write the millivolts per amp scaling factor for the current sensor
-* Default 0.100 or 100mvA
+* Default 100mvA
 
 #### 0x2A R/W pack voltage divider scaling factor, double / float
 
