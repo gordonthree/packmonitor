@@ -119,9 +119,8 @@ void setup() {
   Wire.onReceive(&receiveEvent); // register receiveEvent interrupt handler
 
   extAdc.begin(0x2A, Wire);      // pass through TWI to adc library
-  extAdc.
-  extAdc.avcc4V5();              // set voltage regulator output and analog reference to internal at 4.5v
-  extAdc.rate320sps();           // set conversion rate to 320sps
+  extAdc.avcc4V5();              // set voltage regulator and analog reference to internal at 4.5v
+  extAdc.rate010sps();           // set conversion rate to 320sps
 
   Serial1.print("Loading data from FRAM... ");
 
@@ -182,17 +181,17 @@ void loop() {
 
   if (adcUpdateCnt > adcUpdateInterval) {     
     // read and store temperature data in the FRAM buffer using internal ADC
-    rawAdc = readADC(ADC1, 20); // update in-memory value for local adc0
-    fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, raw2temp(rawAdc));
-    rawAdc = readADC(ADC2, 20); // update in-memory value for local adc0
-    fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, raw2temp(rawAdc));
-    rawAdc = readADC(ADC3, 20); // update in-memory value for local adc0
-    fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, raw2temp(rawAdc));
-    rawAdc = readADC(ADC0, 20); // update in-memory value for local adc0
-    fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);
+    rawAdc = readADC(ADC1, 20); // update in-memory value for internal adc1
+    fram.addRaw(PM_REGISTER_READDEGCT0, timeStamp, rawAdc);                      // store unprocessed raw value
+    fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, raw2temp(rawAdc));         // use LUT to find approximate temperature
+    rawAdc = readADC(ADC2, 20); // update in-memory value for internal adc2
+    fram.addRaw(PM_REGISTER_READDEGCT1, timeStamp, rawAdc);                      // store unprocessed raw value
+    fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, raw2temp(rawAdc));         // use LUT to find approximate temperature
+    rawAdc = readADC(ADC3, 20); // update in-memory value for internal adc3
+    fram.addRaw(PM_REGISTER_READDEGCT2, timeStamp, rawAdc);                      // store unprocessed raw value 
+    fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, raw2temp(rawAdc));         // use LUT to find approximate temperature
+    rawAdc = readADC(ADC0, 20); // update in-memory value for internal adc0
+    fram.addRaw(PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);                    // store unprocessed raw value
     fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, raw2volts(rawAdc, 1.0)); // calculate volts from raw value and divider (1.0)
     // Serial1.println("");
     // Serial1.printf("ADC 1: %.2f ADC 2: %.2f ADC 3: %.2f ADC 0: %.2f\n", 
@@ -206,28 +205,31 @@ void loop() {
     //   fram.getRaw(PM_REGISTER_READDEGCT2),
     //   fram.getRaw(PM_REGISTER_READBUSVOLTS));
 
-    extAdc.selectCh1();
-    rawAdc    = extAdc.readADC(); // get raw value
-    rawDouble = extAdc.readmV();
-    
-    fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);
 
-    extAdc.selectCh2();
-    rawAdc    = extAdc.readADC(); // get raw value
-    rawDouble = extAdc.readmV();
+    extAdc.selectCh1();                                               // select ext adc channel 1
+    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
+    rawDouble = extAdc.readmV();                                      // get voltage as double
     
-    fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);
-    fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);
-    
-    Serial1.printf("extADC 1: %f (%u) ADC 2: %f (%u)\n", 
-      fram.getDataDouble(PM_REGISTER_READPACKVOLTS)/1000.0,
-      fram.getRaw(PM_REGISTER_READPACKVOLTS),
-      fram.getDataDouble(PM_REGISTER_READLOADAMPS)/1000.0,
-      fram.getRaw(PM_REGISTER_READLOADAMPS));
+    fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);        // store raw value in buffer
+    fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);  // store processed value in buffer
+
+    extAdc.selectCh2();                                               // select ext adc channel 2
+    rawAdc    = extAdc.readADC();                                     // get raw 24-bit value
+    rawDouble = extAdc.readmV() / 1000.0;                             // get voltage as double
+      
+    fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);         // store raw value in buffer
+    fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);   // store processed value in buffer
 
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
+    
+  // debug print
+  // Serial1.printf("extADC 1: %f (%u) ADC 2: %f (%u)\n", 
+  //   fram.getDataDouble(PM_REGISTER_READPACKVOLTS)/1000.0,
+  //   fram.getRaw(PM_REGISTER_READPACKVOLTS),
+  //   fram.getDataDouble(PM_REGISTER_READLOADAMPS)/1000.0,
+  //   fram.getRaw(PM_REGISTER_READLOADAMPS));
+
   
   if (txtmsgWaiting) {            // print message sent by Host
     txtmsgWaiting = false;        // clear flag
@@ -281,11 +283,11 @@ void receiveEvent(size_t howMany) {
   uint8_t          _isr_byteArray[4];                // storage for four bytes of data of course!
   uint8_t          _isr_cmdData[64];                 // storage for incoming data from host
   union ulongArray  ulongbuffer;                     // convert between byte array and ulong int
-  union doubleArray dblbuffer;
-  _isr_cmdAddr                   = Wire.read();   // read first byte, store it as command address
-  recvEvnt                       = true;          // set flag to toggle LED in loop()
-  txData.dataLen                 = _isr_dataSize; // set data length here just in case I forgot later
-  _I2C_DATA_RDY                  = false;         // nothing to send yet
+
+  _isr_cmdAddr                      = Wire.read();   // read first byte, store it as command address
+  recvEvnt                          = true;          // set flag to toggle LED in loop()
+  txData.dataLen                    = _isr_dataSize; // set data length here just in case I forgot later
+  _I2C_DATA_RDY                     = false;         // nothing to send yet
 
   while (Wire.available()) {
     _isr_HostByte = (uint8_t) Wire.read();
@@ -301,9 +303,9 @@ void receiveEvent(size_t howMany) {
   // rxData.dataLen           = _isr_dataLen;      // store bytes sent inside struct
   // rxData.cmdAddr           = _isr_cmdAddr;      // store command byte inside struct
 
-  sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X plus %u data bytes", _isr_cmdAddr, _isr_dataLen);
-  dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-  dbgMsgCnt++;                                                        // increment debug message counter
+  // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X plus %u data bytes", _isr_cmdAddr, _isr_dataLen);
+  // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+  // dbgMsgCnt++;                                                        // increment debug message counter
   
   // events that store or return the same data can be stacked like seen below, 
   // the break command stops the current event
@@ -426,22 +428,22 @@ void receiveEvent(size_t howMany) {
     case 0x47: // read t0 highest, double (read only)
     case 0x48: // read t1 highest, double (read only)
     case 0x49: // read t2 highest, double (read only)
-      dblbuffer.doubleVal = fram.getDataDouble(_isr_cmdAddr);
-      memcpy(txData.cmdData, dblbuffer.byteArray, _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-      sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX %f", dblbuffer.doubleVal);
-      dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-      dbgMsgCnt++;
-      txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                                    // let loop know data is ready
-      break;
+      // dblbuffer.doubleVal = fram.getDataDouble(_isr_cmdAddr);
+      // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX %f", dblbuffer.doubleVal);
+      // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+      // dbgMsgCnt++;
+      // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // break;
     case 0x4A: // read t0 low timestamp, unsigned long (read only)
     case 0x4B: // read t1 low timestamp, unsigned long (read only)
     case 0x4C: // read t2 low timestamp, unsigned long (read only)
     case 0x4D: // read t0 high timestamp, unsigned long (read only)
     case 0x4E: // read t1 high timestamp, unsigned long (read only)
     case 0x4F: // read t1 high timestamp, unsigned long (read only)
-      ulongbuffer.longNumber = fram.getDataUInt(_isr_cmdAddr);
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // ulongbuffer.longNumber = fram.getDataUInt(_isr_cmdAddr);
+      memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
       txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
@@ -536,28 +538,13 @@ void receiveEvent(size_t howMany) {
 void requestEvent() {   
   // char reqBuff[80];                          // Host has requested data
   reqEvnt = true;   
-  sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX event; i2c_data_rdy=0x%X and %u data bytes", _I2C_DATA_RDY, txData.dataLen);
-  dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-  dbgMsgCnt++;                                                        // increment debug message counter
+  // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX event; i2c_data_rdy=0x%X and %u data bytes", _I2C_DATA_RDY, txData.dataLen);
+  // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+  // dbgMsgCnt++;                                                        // increment debug message counter
 
   if (_I2C_DATA_RDY) {
     _I2C_DATA_RDY = false;                              // set flag that we had this interaction
     Wire.write((const uint8_t *) txData.cmdData, txData.dataLen);
-    // for (int x = 0; x < txData.dataLen; x++)
-    // {
-    //   Wire.write(txData.cmdData[x]);
-    //   // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Request event sent: 0x%X", txData.cmdData[x]);
-    //   // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    //   // dbgMsgCnt++;                                                        // increment debug message counter
-    // }
-    // Wire.write((char *) txData.cmdData, txData.dataLen);          // dump entire tx buffer to the bus, Host will read as many bytes as it wants
-    // sprintf(reqBuff, "Request even triggered. Sent: %s", txData.cmdData);
-    // Serial1.println(reqBuff);
-    // for (int ptr=0; ptr<4; ptr++){
-    //   sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "sent: 0x%X", txData.cmdData[ptr]);
-    //   dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    //   dbgMsgCnt++;                                                        // increment debug message counter
-    // }
   } else {
     sprintf((char) txData.cmdData,"Client 0x%X ready!", I2C_CLIENT_ADDR);
     Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
