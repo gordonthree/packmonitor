@@ -1,5 +1,6 @@
 #include "pm_fram.h"
 
+
 // provide fram eeprom address and device size
 FRAMSTORAGE::FRAMSTORAGE() 
 {
@@ -18,49 +19,66 @@ void FRAMSTORAGE::load()
 {
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ptr->readBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    ptr->readBlock((x * ee_record_size) + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
   }
+}
+
+uint16_t FRAMSTORAGE::buffer_size()
+{
+  return ee_buffer_size;
+}
+
+uint16_t FRAMSTORAGE::record_size()
+{
+  return ee_record_size;
 }
 
 // write the buffer into the eeprom
-void FRAMSTORAGE::save() 
+bool FRAMSTORAGE::save() 
 {
+  bool result;
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ptr->writeBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    result = ptr->writeBlockVerify((x * ee_record_size) + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
   }
+
+  return result;
 }
 
-void FRAMSTORAGE::addArrayData(uint8_t dataAddr, uint8_t * byteArray)           /* load i2c data into buffer */
+uint8_t * FRAMSTORAGE::dumpRecord(uint16_t x)                            // return everything
+{
+    ptr->readBlock((x * ee_record_size) + ee_start_byte, fram_buffer[0].byteArray, ee_record_size);
+    return fram_buffer[0].byteArray;
+}
+
+
+void FRAMSTORAGE::addByteArray(uint8_t dataAddr, uint32_t ts, uint8_t * byteArray)           /* load i2c data into buffer */
 { // memcpy(dst, src, len)
-  memcpy(fram_buffer[dataAddr].byteArray, byteArray, 4);
+  fram_buffer[dataAddr].data.ts = ts;
+  memcpy(fram_buffer[dataAddr].data.array, byteArray, 4);
 }
-
 
 void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* update array with a double from userland */
 { // memcpy(dst, src, len)
-  union doubleArray buffer;
-  buffer.doubleVal = doubleVal;
+  dbuffer.doubleVal = doubleVal;
 
   fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
+  memcpy(fram_buffer[dataAddr].data.array, dbuffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addUInt(uint8_t dataAddr, uint32_t ts, uint32_t uintVal) /* update array with a unsigned int from userland */
 { // memcpy(dst, src, len)
-  union ulongArray buffer;
-  buffer.longNumber = uintVal;
+  ubuffer.longNumber = uintVal;
 
   fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
+  memcpy(fram_buffer[dataAddr].data.array, ubuffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addSInt(uint8_t dataAddr, uint32_t ts, int32_t intVal)   /* update array with a signed integer from userland */
 { // memcpy(dst, src, len)
-  union longArray buffer;
-  buffer.longNumber                = intVal;
-  fram_buffer[dataAddr].data.ts    = ts;
-  memcpy(fram_buffer[dataAddr].data.array, buffer.byteArray, 4);
+  lbuffer.longNumber                = intVal;
+  fram_buffer[dataAddr].data.ts     = ts;
+  memcpy(fram_buffer[dataAddr].data.array, lbuffer.byteArray, 4);
 }
 
 void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* update array with a single byte from userland */
@@ -69,7 +87,7 @@ void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* u
   fram_buffer[dataAddr].data.array[0] = byteVal;
 }
 
-void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, uint16_t rawVal)   /* update array with a raw adc data (16 bits) */
+void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, int32_t rawVal)   /* update array with a raw adc data (16 bits) */
 {
   fram_buffer[dataAddr].data.ts       = ts;     // update record timestamp
   fram_buffer[dataAddr].data.raw      = rawVal; // update raw value
@@ -87,32 +105,28 @@ uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                   // retur
   return byteArray;
 }
 
-uint16_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
+int32_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
   return fram_buffer[dataAddr].data.raw;
 }
 
 uint32_t FRAMSTORAGE::getDataUInt(uint8_t dataAddr)                 // convert byte array to unsigned int
 { // memcpy(dst, src, len)
-  union ulongArray buffer;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  return buffer.longNumber;
+  memcpy(ubuffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  return ubuffer.longNumber;
 }
 
 int32_t FRAMSTORAGE::getDataSInt(uint8_t dataAddr)                  // convert byte array to signed int
 { // memcpy(dst, src, len)
-  union longArray buffer;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  return buffer.longNumber;
+  memcpy(lbuffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  return lbuffer.longNumber;
 }
 
 double FRAMSTORAGE::getDataDouble (uint8_t dataAddr)                 // convert byte array to double precision
 { // memcpy(dst, src, len)
-  union doubleArray buffer;
-  memcpy(buffer.byteArray, fram_buffer[dataAddr].data.array, 4);
-  return buffer.doubleVal;
+  memcpy(dbuffer.byteArray, fram_buffer[dataAddr].data.array, 4);
+  return dbuffer.doubleVal;
 }
-
 
 uint8_t FRAMSTORAGE::getDataByte(uint8_t dataAddr)                 // read one byte from byte array
 {
