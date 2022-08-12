@@ -27,6 +27,13 @@ struct DEBUG_MSGS {
   char    messageTxt[50];
 };
 
+typedef struct tempsensor_t
+{
+  double  tempReading = 0.0;
+  double  lowReading  = 0.0;
+  double  highReading = 0.0;
+  uint8_t sensorAddr  = 0; 
+}
 union ulongArray
 {
   uint32_t longNumber=0;
