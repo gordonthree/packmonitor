@@ -18,7 +18,7 @@ void FRAMSTORAGE::load()
 {
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ptr->readBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    ptr->readBlock((x * ee_record_size) + ee_start_offset, fram_buffer[x].byteArray, ee_record_size);
   }
 }
 
@@ -27,7 +27,7 @@ void FRAMSTORAGE::save()
 {
   for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    ptr->writeBlock(x + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
+    ptr->writeBlock((x * ee_record_size) + ee_start_offset, fram_buffer[x].byteArray, ee_record_size);
   }
 }
 
