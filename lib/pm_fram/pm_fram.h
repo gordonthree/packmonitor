@@ -34,19 +34,19 @@ class FRAMSTORAGE
     {
     int32_t longNumber=0;
     uint8_t byteArray[4];
-    };
+    } lbuffer;
 
     union ulongArray
     {
     uint32_t longNumber=0;
     uint8_t  byteArray[4];
-    };
+    } ubuffer;
 
     union doubleArray
     {
     double doubleVal;
     uint8_t byteArray[4];
-    };    
+    } dbuffer;    
  
     EERECORD fram_buffer[ee_buffer_size];
 
