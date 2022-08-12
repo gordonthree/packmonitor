@@ -380,11 +380,12 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                    // store data
   fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);              // store amps value in memory
 
-  if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                   // Current sense is out of range, malfunction
+  if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                    // Current sense is out of range, malfunction
   else 
   {
-    if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                      // Current sense near high limit
-    if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                      // Current sense beyond high limit
+    if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                     // Current sense near high limit
+    if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                     // Current sense beyond high limit
+    else                                   hiIalarm_cnt=0;                     // no alarm, clear counter
   }
 
   if (hiIwarn) {
@@ -412,6 +413,10 @@ void updateReadings() {
     else if (rawDouble>vPackHigh)      hiValarm_cnt++;                            // increase count for high voltage alarm
     else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25)
       packVwarn = true;  // voltage near threshold
+    else { // no problems, reset alarm counters
+      loValarm_cnt = 0;
+      hiValarm_cnt = 0;
+    }
   }
 
   if (packVerror) {
@@ -430,27 +435,27 @@ void updateReadings() {
   if (!alarmDisable) {                                                            // user can disable alarms
     if (hiIalarm_cnt>iAlarm_threshold) {
       Serial1.printf("%lu: ALARM: Current exceeding threshold!\n", timeStamp);
-      hiIalarm_cnt = 0; // reset alarm
+      hiIalarm_cnt = iAlarm_threshold; // reset alarm
     }
 
     if (hiTalarm_cnt>tAlarm_threshold ) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too high!\n", timeStamp);
-      hiTalarm_cnt = 0;
+      hiTalarm_cnt = tAlarm_threshold;
     }
 
     if (loTalarm_cnt>tAlarm_threshold) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too low!\n", timeStamp);
-      loTalarm_cnt = 0;
+      loTalarm_cnt = tAlarm_threshold;
     }
 
     if (loValarm_cnt>vAlarm_threshold) { // handle low pack voltage alarm condition
       Serial1.printf("%lu: ALARM: Pack voltage too low!\n", timeStamp);
-      loValarm_cnt = 0; // reset alarm
+      loValarm_cnt = vAlarm_threshold; // reset alarm
     }
 
     if (hiValarm_cnt>vAlarm_threshold) { // handle high pack voltage alarm condition
       Serial1.printf("%u: ALARM: Pack voltage too high!\n", timeStamp);
-      hiValarm_cnt = 0; // reset alarm
+      hiValarm_cnt = vAlarm_threshold; // reset alarm
     }
   }
 }
