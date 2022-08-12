@@ -21,9 +21,9 @@ volatile bool purgeTXBuffer    = true;                              // tell loop
 volatile bool dumpEEprom       = false;                             // tell loop to print contents of eeprom buffer to serial
 volatile char txtMessage[50];                                       // alternate buffer for message from Host
 
-volatile uint8_t messageLen     = 0;                                // message from Host length
-volatile time_t  lasttimeSync   = 0;                                // when's the last time Host sent us time?
-volatile time_t  firsttimeSync  = 0;                                // record the timestamp after boot
+volatile uint8_t   messageLen     = 0;                              // message from Host length
+volatile uint32_t  lasttimeSync   = 0;                              // when's the last time Host sent us time?
+volatile uint32_t  firsttimeSync  = 0;                              // record the timestamp after boot
 
 volatile DEBUG_MSGS dbgMsgs[50];                                    // room for messages from inside isr to be printed outside
 volatile uint8_t    dbgMsgCnt  = 0;                                 // counter for how many debug messages are waiting
@@ -34,6 +34,10 @@ volatile I2C_TX_DATA txData;
 NAU7802     extAdc;                                                 // NAU7802 ADC device
 FRAMSTORAGE fram;                                                   // access the array for storing eeprom contents
 I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);                   // setup the eeprom here in the global scope
+
+const uint8_t ee_record_size  = 24;                                 // save constant for size of eedata structure
+const uint8_t ee_buffer_size  = 0x70;                               // number of recordds in the buffer array
+const uint8_t ee_start_offset = 0x64;                               // eeprom offset is 100 bytes (0x64), save that space for other uses
 
 uint8_t   hiTalarm_cnt;                                             // counter for high temp alarm trigger
 uint8_t   loTalarm_cnt;                                             // same as above for low temop
@@ -49,10 +53,8 @@ char      buff[200];                                                // temporary
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
 
-int       framLoad           (void);
-bool      framSave           (void);
-void      dumpBuffer         (void);
-void      dumpFram           (void);
+void      framSave();
+void      framLoad();
 void      printConfig        (void);                                // dump various config elements to serial port
 void      updateReadings     (void);                                // read various sensors and update memory
 void      scanI2C            (void);                                // scan local client bus
@@ -70,6 +72,8 @@ uint32_t  readADC            (uint8_t adcPin, uint8_t noSamples);   // return va
   //HardwareI2C &i2c_host = TWI1;
   TwoWire &i2c_host = TWI1;
 #endif
+
+void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 void setup() {
   pinMode(PIN_PF0, INPUT_PULLUP); // pins for client address configuration
@@ -135,7 +139,9 @@ void setup() {
 
   Serial1.print("Loading data from FRAM... ");
 
-  int bytesRead = framLoad();
+  // fram.begin(ee_fram);
+  fram.begin();
+  framLoad();
 
   Serial1.print("complete.\n");
 
@@ -148,7 +154,7 @@ void setup() {
   if (CONFIG0!=0) bitSet(CONFIG0, PM_STATUS0_CONFIGSET);       // if config0 is not zero, assume a config has been set, update status
   fram.addByte(PM_REGISTER_STATUS0BYTE, 0, STATUS0);           // init status0
   fram.addByte(PM_REGISTER_STATUS1BYTE, 0, 0);                 // init status1
-
+  setTime(fram.getDataUInt(PM_REGISTER_TIMESYNC));             // set time based on last-sync time from fram
   printConfig();
 } // end setup()
 
@@ -172,7 +178,27 @@ void loop() {
   digitalWrite(LED4, HostsetTime);
 
   if (dumpEEprom) {
-    dumpFram();
+    Serial1.print("Flush memory buffer to f-ram... ");
+    framSave();
+    Serial1.println("done.\nRereading f-ram contents...");
+    framLoad();
+    Serial1.println("done.\nPrinting memory buffer contents...");
+
+    byte xx=0x21; // start here
+    while (xx<0x65) 
+    {
+      Serial1.printf(
+        "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %lu\n",
+        xx,
+        fram.getTimeStamp(xx), 
+        fram.getDataDouble(xx),
+        fram.getDataUInt(xx),
+        fram.getDataSInt(xx),
+        fram.getRaw(xx)
+      );
+      xx++;
+    }
+    Serial1.println("Complete.");
     dumpEEprom = false;
   }
 
@@ -217,11 +243,8 @@ void loop() {
     if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
   }
 
-  if (iFive>5000) {                 // roughly every 5 seconds
-    if (timeSet) {
-      bool saveSuccessful = framSave();  // write memory cache to fram for backup
-      if (!saveSuccessful) Serial1.println("******************Save to f-ram failed!*********************");
-    }
+  if (iFive>5000) {               // roughly every 5 seconds
+    framSave();                  // write memory cache to fram for backup
   
     hiTalarm_cnt = 0;               // reset temp alarm counter
     loTalarm_cnt = 0;               // same
@@ -363,11 +386,12 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                    // store data
   fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);              // store amps value in memory
 
-  if (rawDouble<-30.0 || rawDouble>30.0) {
-    loadIerror = true;                                                         // Current sense is out of range, malfunction
-  } else {
+  if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                    // Current sense is out of range, malfunction
+  else 
+  {
     if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                     // Current sense near high limit
     if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                     // Current sense beyond high limit
+    else 
   }
 
   if (hiIwarn) {
@@ -389,14 +413,18 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                      // store data
   fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);                // store data
 
-  if (rawDouble<=0.0 || rawDouble>20.0) {
-    packVerror = true; // voltage out of bounds
-  } else {
-    if (rawDouble<vPackLow)                                           loValarm_cnt++;    // increase count for low voltage alarm
-    else if (rawDouble>vPackHigh)                                     hiValarm_cnt++;    // increase count for high voltage alarm
-    else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25) packVwarn = true;  // voltage near threshold
+  if (rawDouble<1.0 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
+  else
+  { 
+    if (rawDouble<vPackLow)            loValarm_cnt++;                            // increase count for low voltage alarm
+    else if (rawDouble>vPackHigh)      hiValarm_cnt++;                            // increase count for high voltage alarm
+    else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25)
+      packVwarn = true;  // voltage near threshold
+    else { // no problems, reset alarm counters
+      loValarm_cnt = 0;
+      hiValarm_cnt = 0;
+    }
   }
-
 
   if (packVerror) {
     Serial1.printf("%lu: ERROR: Pack voltage sensor out of range (%.3f)\n", timeStamp, rawDouble);
@@ -414,35 +442,30 @@ void updateReadings() {
   if (!alarmDisable) {                                                            // user can disable alarms
     if (hiIalarm_cnt>iAlarm_threshold) {
       Serial1.printf("%lu: ALARM: Current exceeding threshold!\n", timeStamp);
-      hiIalarm_cnt = 0; // reset alarm
+      hiIalarm_cnt = iAlarm_threshold; // reset alarm
     }
 
     if (hiTalarm_cnt>tAlarm_threshold ) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too high!\n", timeStamp);
-      hiTalarm_cnt = 0;
+      hiTalarm_cnt = tAlarm_threshold;
+
     }
 
     if (loTalarm_cnt>tAlarm_threshold) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too low!\n", timeStamp);
-      loTalarm_cnt = 0;
+      loTalarm_cnt = tAlarm_threshold;
     }
 
     if (loValarm_cnt>vAlarm_threshold) { // handle low pack voltage alarm condition
       Serial1.printf("%lu: ALARM: Pack voltage too low!\n", timeStamp);
-      loValarm_cnt = 0; // reset alarm
+      loValarm_cnt = vAlarm_threshold; // reset alarm
     }
 
     if (hiValarm_cnt>vAlarm_threshold) { // handle high pack voltage alarm condition
       Serial1.printf("%u: ALARM: Pack voltage too high!\n", timeStamp);
-      hiValarm_cnt = 0; // reset alarm
+      hiValarm_cnt = vAlarm_threshold; // reset alarm
     }
   }
-
-  // fram.addRaw(reg, tS, rawAdc);                                    // store raw value in buffer
-  // fram.addDouble(reg, tS, rawDouble);                              // store processed value in buffer
-
-
-
 }
 
 // function that executes whenever data is received from Host
@@ -669,13 +692,13 @@ void receiveEvent(size_t howMany) {
       _isr_timeStamp = ulongbuffer.longNumber;
 
       if (_isr_timeStamp>1000000000) {
-        setTime(_isr_timeStamp);                                        // fingers crossed
-        HostsetTime = true;                                             // set flag
-        lasttimeSync = _isr_timeStamp;                                  // record timestamp of sync
-        if (!firsttimeSync) firsttimeSync = _isr_timeStamp;             // if it's the first sync, record in separate variable
-        uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);    // retrieve status0 byte
-        bitSet(STATUS0, PM_STATUS0_TIMESET);                            // set TIMESET bit in status0
-        fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0); // write status0 back to buffer
+        setTime(_isr_timeStamp);                                            // fingers crossed
+        HostsetTime = true;                                                 // set flag
+        lasttimeSync = _isr_timeStamp;                                      // record timestamp of sync
+        if (firsttimeSync==0) firsttimeSync = _isr_timeStamp;                 // if it's the first sync, record in separate variable
+        uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);        // retrieve status0 byte
+        bitSet(STATUS0, PM_STATUS0_TIMESET);                                // set TIMESET bit in status0
+        fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0);     // write status0 back to buffer
         // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
         // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         // dbgMsgCnt++;
@@ -693,19 +716,22 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x62: // read current timestamp, ulong (read only)
       ulongbuffer.longNumber = _isr_timeStamp;
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);     // convert to byte array and copy to tx buffer
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      fram.addUInt(PM_REGISTER_CURRENTTIME, _isr_timeStamp, _isr_timeStamp);
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x63: // read time since last sync, ulong (read only)
       ulongbuffer.longNumber = now() - lasttimeSync;
       memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, ulongbuffer.longNumber);
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x64: // read time since boot (uptime), ulong (read only)
       ulongbuffer.longNumber = now() - firsttimeSync;
       memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      fram.addUInt(PM_REGISTER_UPTIME, _isr_timeStamp, ulongbuffer.longNumber);
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
@@ -775,7 +801,11 @@ void scanI2C() {
   }
   
   if (nDevices == 0)
-    Serial1.println("No I2C devices found");
+    {
+      Serial1.println("No I2C devices found");
+      delay(10000);
+      resetFunc();
+    }
   else
     Serial1.println("done.");
  
@@ -834,16 +864,18 @@ int32_t getLong(uint8_t * byteArray)
 }
 
 void printConfig(){
-  double  vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
-  double  hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
-  double  loTemp       = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
-  double  vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
-  double  vPackLow     = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
-  double  vPackHigh    = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
-  double  iLoadHigh    = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
-  double  mvA          = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
-  uint8_t CONFIG0      = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
+  double   vBusDiv     = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
+  double   hiTemp      = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
+  double   loTemp      = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
+  double   vPackDiv    = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+  double   vPackLow    = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
+  double   vPackHigh   = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
+  double   iLoadHigh   = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
+  double   mvA         = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
+  uint8_t  CONFIG0     = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
+  uint32_t lastSync    = fram.getDataUInt(PM_REGISTER_TIMESYNC);
 
+  Serial1.printf("Last sync %lu\n", lastSync);
   Serial1.printf("CONFIG0 0x%X\n", CONFIG0);
   Serial1.printf("Current limit %f\n", iLoadHigh);
   Serial1.printf("Low voltaget %f\n", vPackLow);
@@ -853,63 +885,27 @@ void printConfig(){
   Serial1.printf("vBusDiv %f\n", vBusDiv);
   Serial1.printf("vPackDiv %f\n", vPackDiv);
   Serial1.printf("mvA %f\n", mvA);
-
 }
 
-void dumpFram(){
-  Serial1.println("Dumping raw eeprom contents:");
-  uint16_t eeAddr;
-  uint16_t y;
-  uint8_t val = 0;
-
-  // start here
-  const uint16_t record_size = 24;
-  const uint16_t start_byte  = 100;
-  uint8_t buffer[24];
-
-  for (eeAddr = 0x21; eeAddr < 0x70; eeAddr++)
-  {
-    int bytesRead=ee_fram.readBlock((eeAddr * record_size) + start_byte, buffer, record_size);
-
-    Serial1.printf("Raw 0x%x: ", eeAddr);
-    for (y=0; y < record_size; y++) {
-      val = buffer[y];
-      Serial1.printf("%x ", val);
-    }
-    Serial1.print("\n");
-  }
-
-  Serial1.println("Complete.");
-
-}
-
-void dumpBuffer() {
-// dunno 
-}
-
-int framLoad()
+void framLoad()
 {
-  uint8_t startByte     = 100;
-  int     bytesRead     = 0;
-  uint8_t dataArray[24];
-
-  for (uint16_t x = 0; x < framRegCnt; x++)
+  for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    bytesRead += ee_fram.readBlock((x * framRegSize) + startByte, dataArray, framRegSize);
-    fram.addByteArray(x, dataArray);
+    uint8_t byteArray[24];
+    ee_fram.readBlock((x * ee_record_size) + ee_start_offset, byteArray, ee_record_size);
+    fram.addArrayData(x, byteArray);
+    // Serial1.printf("0x%x: ", x);
+    // for (int y=0; y<ee_record_size; y++)
+    //   Serial1.printf("%x ", byteArray[y]);
+    // Serial1.print("\n");
   }
 }
 
 // write the buffer into the eeprom
-bool framSave() 
+void framSave() 
 {
-  bool result;
-  uint8_t startByte = 100;
-
-  for (uint16_t x = 0; x < framRegCnt; x++)
+  for (uint16_t x = 0; x < ee_buffer_size; x++)
   {
-    result = ee_fram.writeBlockVerify((x * framRegSize) + startByte, fram.getByteArray(x), framRegSize);
+    ee_fram.writeBlock((x * ee_record_size) + ee_start_offset, fram.getArrayData(x), ee_record_size);
   }
-
-  return result;
 }
