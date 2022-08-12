@@ -43,7 +43,7 @@ class FRAMSTORAGE
     uint8_t byteArray[eedata_size];                          // byte array to send over i2c or store in fram
     };
 
-    const uint16_t ee_buffer_size = 70;               // number of recordds in the buffer array
+    static const uint16_t ee_buffer_size = 70;               // number of recordds in the buffer array
     static const uint16_t ee_record_size = sizeof(EERECORD); // calculate size of a record in bytes
     const uint16_t ee_start_byte  = 0x64;                    // eeprom offset is 100 bytes (0x64), save that space for other uses
     
