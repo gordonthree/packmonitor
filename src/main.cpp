@@ -35,6 +35,10 @@ NAU7802     extAdc;                                                 // NAU7802 A
 FRAMSTORAGE fram;                                                   // access the array for storing eeprom contents
 I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);                   // setup the eeprom here in the global scope
 
+const uint8_t ee_record_size  = 24;                                 // save constant for size of eedata structure
+const uint8_t ee_buffer_size  = 0x70;                               // number of recordds in the buffer array
+const uint8_t ee_start_offset = 0x64;                               // eeprom offset is 100 bytes (0x64), save that space for other uses
+
 uint8_t   hiTalarm_cnt;                                             // counter for high temp alarm trigger
 uint8_t   loTalarm_cnt;                                             // same as above for low temop
 uint8_t   hiValarm_cnt;                                             // counter for high voltage alarm trigger
@@ -48,6 +52,8 @@ char      buff[200];                                                // temporary
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
 
+void      framSave();
+void      framLoad();
 void      printConfig        (void);                                // dump various config elements to serial port
 void      updateReadings     (void);                                // read various sensors and update memory
 void      scanI2C            (void);                                // scan local client bus
@@ -132,7 +138,9 @@ void setup() {
 
   Serial1.print("Loading data from FRAM... ");
 
-  fram.begin(ee_fram);
+  // fram.begin(ee_fram);
+  fram.begin();
+  framLoad();
 
   Serial1.print("complete.\n");
 
@@ -172,9 +180,9 @@ void loop() {
 
   if (dumpEEprom) {
     Serial1.print("Flush memory buffer to f-ram... ");
-    fram.save();
+    framSave();
     Serial1.println("done.\nRereading f-ram contents...");
-    fram.load();
+    framLoad();
     Serial1.println("done.\nPrinting memory buffer contents...");
 
     byte xx=0x21; // start here
@@ -237,7 +245,7 @@ void loop() {
   }
 
   if (iFive>5000) {               // roughly every 5 seconds
-    fram.save();                  // write memory cache to fram for backup
+    framSave();                  // write memory cache to fram for backup
   
     hiTalarm_cnt = 0;             // reset temp alarm counter
     loTalarm_cnt = 0;             // same
@@ -664,13 +672,14 @@ void receiveEvent(size_t howMany) {
       _isr_timeStamp = ulongbuffer.longNumber;
 
       if (_isr_timeStamp>1000000000) {
-        setTime(_isr_timeStamp);                                        // fingers crossed
-        HostsetTime = true;                                             // set flag
-        lasttimeSync = _isr_timeStamp;                                  // record timestamp of sync
-        if (!firsttimeSync) firsttimeSync = _isr_timeStamp;             // if it's the first sync, record in separate variable
-        uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);    // retrieve status0 byte
-        bitSet(STATUS0, PM_STATUS0_TIMESET);                            // set TIMESET bit in status0
-        fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0); // write status0 back to buffer
+        setTime(_isr_timeStamp);                                            // fingers crossed
+        HostsetTime = true;                                                 // set flag
+        lasttimeSync = _isr_timeStamp;                                      // record timestamp of sync
+        if (!firsttimeSync) firsttimeSync = _isr_timeStamp;                 // if it's the first sync, record in separate variable
+        uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);        // retrieve status0 byte
+        bitSet(STATUS0, PM_STATUS0_TIMESET);                                // set TIMESET bit in status0
+        fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0);     // write status0 back to buffer
+        fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, _isr_timeStamp); // save sync time to eeprom
         // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
         // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         // dbgMsgCnt++;
@@ -833,16 +842,17 @@ int32_t getLong(uint8_t * byteArray)
 }
 
 void printConfig(){
-  double  vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
-  double  hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
-  double  loTemp       = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
-  double  vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
-  double  vPackLow     = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
-  double  vPackHigh    = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
-  double  iLoadHigh    = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
-  double  mvA          = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
-  uint8_t CONFIG0      = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
-
+  double   vBusDiv     = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
+  double   hiTemp      = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
+  double   loTemp      = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
+  double   vPackDiv    = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);
+  double   vPackLow    = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
+  double   vPackHigh   = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
+  double   iLoadHigh   = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
+  double   mvA         = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
+  uint8_t  CONFIG0     = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
+  uint32_t lastSync    = fram.getDataUInt(PM_REGISTER_TIMESYNC);
+  Serial1.printf("Last sync %lu\n", lastSync);
   Serial1.printf("CONFIG0 0x%X\n", CONFIG0);
   Serial1.printf("Current limit %f\n", iLoadHigh);
   Serial1.printf("Low voltaget %f\n", vPackLow);
@@ -852,4 +862,27 @@ void printConfig(){
   Serial1.printf("vBusDiv %f\n", vBusDiv);
   Serial1.printf("vPackDiv %f\n", vPackDiv);
   Serial1.printf("mvA %f\n", mvA);
+}
+
+void framLoad()
+{
+  for (uint16_t x = 0; x < ee_buffer_size; x++)
+  {
+    uint8_t byteArray[24];
+    ee_fram.readBlock((x * ee_record_size) + ee_start_offset, byteArray, ee_record_size);
+    fram.addArrayData(x, byteArray);
+    // Serial1.printf("0x%x: ", x);
+    // for (int y=0; y<ee_record_size; y++)
+    //   Serial1.printf("%x ", byteArray[y]);
+    // Serial1.print("\n");
+  }
+}
+
+// write the buffer into the eeprom
+void framSave() 
+{
+  for (uint16_t x = 0; x < ee_buffer_size; x++)
+  {
+    ee_fram.writeBlock((x * ee_record_size) + ee_start_offset, fram.getArrayData(x), ee_record_size);
+  }
 }
