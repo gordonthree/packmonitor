@@ -391,7 +391,7 @@ void updateReadings() {
   {
     if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                     // Current sense near high limit
     if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                     // Current sense beyond high limit
-    else 
+    else hiIalarm_cnt=0;                                                       // reset alarm counter
   }
 
   if (hiIwarn) {

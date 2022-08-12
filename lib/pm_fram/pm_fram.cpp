@@ -17,32 +17,16 @@ void FRAMSTORAGE::begin()
   // _ee_fram.begin();
 }
 
-// void FRAMSTORAGE::load()
-// {
-//   for (uint16_t x = 0; x < ee_buffer_size; x++)
-//   {
-//     _ee_fram.readBlock((x * ee_record_size) + ee_start_offset, fram_buffer[x].byteArray, ee_record_size);
-//   }
-// }
 
-// // write the buffer into the eeprom
-// void FRAMSTORAGE::save() 
-// {
-//   for (uint16_t x = 0; x < ee_buffer_size; x++)
-//   {
-//     _ee_fram.writeBlock((x * ee_record_size) + ee_start_offset, fram_buffer[x].byteArray, ee_record_size);
-//   }
-// }
-
-void FRAMSTORAGE::addByteArray(uint8_t dataAddr, uint8_t * dataArray)           /* load i2c data into buffer */
+void FRAMSTORAGE::addArrayData(uint8_t dataAddr, uint8_t * dataArray)           /* load i2c data into buffer */
 { // memcpy(dst, src, len)
-  memcpy(fram_buffer[dataAddr].byteArray, byteArray, 24);
+  memcpy(fram_buffer[dataAddr].byteArray, dataArray, 24);
 }
 
 uint8_t * FRAMSTORAGE::getArrayData(uint8_t dataAddr)                   // return the entire byte array
 {
-  uint8_t * byteArray = fram_buffer[dataAddr].byteArray;
-  return byteArray;
+  uint8_t * dataArray = fram_buffer[dataAddr].byteArray;
+  return dataArray;
 }
 
 void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* update array with a double from userland */
@@ -75,8 +59,9 @@ void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* u
 }
 
 void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, int32_t rawVal)   /* update array with a raw adc data (16 bits) */
-  fram_buffer[dataAddr].data.ts       = ts;     // update record timestamp
-  fram_buffer[dataAddr].data.raw      = rawVal; // update raw value
+{
+  fram_buffer[dataAddr].data.ts  = ts;     // update record timestamp
+  fram_buffer[dataAddr].data.raw = rawVal; // update raw value
 }
 
 uint32_t FRAMSTORAGE::getTimeStamp(uint8_t dataAddr)                    // get the timestamp for this record

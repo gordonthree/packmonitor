@@ -74,10 +74,10 @@ class FRAMSTORAGE
     void addUInt     (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);  // update array with a unsigned int from userland
     void addSInt     (uint8_t dataAddr, uint32_t ts, int32_t intVal);    // update array with a signed integer from userland
     void addByte     (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);   // update array with a single byte from userland
-    void addRaw      (uint8_t dataAddr, uint32_t ts, uint32_t rawVal); // update array with raw adc data
+    void addRaw      (uint8_t dataAddr, uint32_t ts, int32_t rawVal);    // update array with raw adc data
 
     uint32_t  getTimeStamp  (uint8_t dataAddr);                          // get the timestamp for the record
-    uint32_t  getRaw        (uint8_t dataAddr);                          // get raw adc data
+    int32_t   getRaw        (uint8_t dataAddr);                          // get raw adc data
     uint32_t  getDataUInt   (uint8_t dataAddr);                          // transform byte array into usigned int
     double    getDataDouble (uint8_t dataAddr);                          // transform byte array into double precision (float)
     int32_t   getDataSInt   (uint8_t dataAddr);                          // transform byte array into signed int
