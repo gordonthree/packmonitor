@@ -66,6 +66,8 @@ uint32_t  readADC            (uint8_t adcPin, uint8_t noSamples);   // return va
   TwoWire &i2c_host = TWI1;
 #endif
 
+void(* resetFunc) (void) = 0;//declare reset function at address 0
+
 void setup() {
   pinMode(PIN_PF0, INPUT_PULLUP); // pins for client address configuration
   pinMode(PIN_PF1, INPUT_PULLUP);
@@ -169,12 +171,15 @@ void loop() {
   digitalWrite(LED4, HostsetTime);
 
   if (dumpEEprom) {
-    Serial1.println("Dumping eeprom contents!");
+    Serial1.print("Flush memory buffer to f-ram... ");
+    fram.save();
+    Serial1.println("done!")
+    Serial1.println("Dumping eeprom contents...");
     byte xx=0x21; // start here
     while (xx<0x65) 
     {
       Serial1.printf(
-        "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %u\n",
+        "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %lu\n",
         xx,
         fram.getTimeStamp(xx), 
         fram.getDataDouble(xx),
@@ -390,12 +395,13 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                      // store data
   fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);                // store data
 
-  if (rawDouble<8.0 || rawDouble>20.0)                         packVerror = true; // voltage out of bounds
+  if (rawDouble<1.0 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
   else
   { 
-    if (rawDouble<vPackLow)                                      loValarm_cnt++;    // increase count for low voltage alarm
-    else if (rawDouble>vPackHigh)                                     hiValarm_cnt++;    // increase count for high voltage alarm
-    else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25) packVwarn = true;  // voltage near threshold
+    if (rawDouble<vPackLow)            loValarm_cnt++;                            // increase count for low voltage alarm
+    else if (rawDouble>vPackHigh)      hiValarm_cnt++;                            // increase count for high voltage alarm
+    else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25)
+      packVwarn = true;  // voltage near threshold
   }
 
   if (packVerror) {
@@ -762,7 +768,11 @@ void scanI2C() {
   }
   
   if (nDevices == 0)
-    Serial1.println("No I2C devices found");
+    {
+      Serial1.println("No I2C devices found");
+      delay(10000);
+      resetFunc();
+    }
   else
     Serial1.println("done.");
  
@@ -838,5 +848,6 @@ void printConfig(){
   Serial1.printf("Low temp %f\n", loTemp);
   Serial1.printf("High temp %f\n", hiTemp);
   Serial1.printf("vBusDiv %f\n", vBusDiv);
+  Serial1.printf("vPackDiv %f\n", vPackDiv);
   Serial1.printf("mvA %f\n", mvA);
 }
