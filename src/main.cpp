@@ -365,9 +365,12 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                    // store data
   fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);              // store amps value in memory
 
-  if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                      // Current sense near high limit
-  if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                      // Current sense beyond high limit
   if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                   // Current sense is out of range, malfunction
+  else 
+  {
+    if (rawDouble>iLoadHigh - 1.0)         hiIwarn = true;                      // Current sense near high limit
+    if (rawDouble>iLoadHigh)               hiIalarm_cnt++;                      // Current sense beyond high limit
+  }
 
   if (hiIwarn) {
     Serial1.printf("%lu WARN: Load current near threshold (%.2f)\n", timeStamp, rawDouble);
@@ -387,10 +390,13 @@ void updateReadings() {
   fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                      // store data
   fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);                // store data
 
-  if (rawDouble<vPackLow)                                      loValarm_cnt++;    // increase count for low voltage alarm
-  if (rawDouble>vPackHigh)                                     hiValarm_cnt++;    // increase count for high voltage alarm
-  if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25) packVwarn = true;  // voltage near threshold
   if (rawDouble<8.0 || rawDouble>20.0)                         packVerror = true; // voltage out of bounds
+  else
+  { 
+    if (rawDouble<vPackLow)                                      loValarm_cnt++;    // increase count for low voltage alarm
+    else if (rawDouble>vPackHigh)                                     hiValarm_cnt++;    // increase count for high voltage alarm
+    else if (rawDouble<vPackLow + 0.25 || rawDouble>vPackHigh - 0.25) packVwarn = true;  // voltage near threshold
+  }
 
   if (packVerror) {
     Serial1.printf("%lu: ERROR: Pack voltage sensor out of range (%.3f)\n", timeStamp, rawDouble);
@@ -413,30 +419,24 @@ void updateReadings() {
 
     if (hiTalarm_cnt>tAlarm_threshold ) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too high!\n", timeStamp);
-      hiTalarm = false;
+      hiTalarm_cnt = 0;
     }
 
     if (loTalarm_cnt>tAlarm_threshold) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature is too low!\n", timeStamp);
-      loTalarm = false;
+      loTalarm_cnt = 0;
     }
 
     if (loValarm_cnt>vAlarm_threshold) { // handle low pack voltage alarm condition
       Serial1.printf("%lu: ALARM: Pack voltage too low!\n", timeStamp);
-      loValarm_cnt=0; // reset alarm
+      loValarm_cnt = 0; // reset alarm
     }
 
     if (hiValarm_cnt>vAlarm_threshold) { // handle high pack voltage alarm condition
       Serial1.printf("%u: ALARM: Pack voltage too high!\n", timeStamp);
-      hiValarm_cnt=0; // reset alarm
+      hiValarm_cnt = 0; // reset alarm
     }
   }
-
-  // fram.addRaw(reg, tS, rawAdc);                                    // store raw value in buffer
-  // fram.addDouble(reg, tS, rawDouble);                              // store processed value in buffer
-
-
-
 }
 // function that executes whenever data is received from Host
 // this function is registered as an event, see setup()
