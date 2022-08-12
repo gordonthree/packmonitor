@@ -4,12 +4,13 @@
 #include <Wire.h>
 #include <I2C_eeprom.h>
 
-#define eedata_size 80                                      // constant for size of eedata structure
 
 // a class to manage the fram data buffer
 class FRAMSTORAGE 
 {
   private:
+    // static const uint8_t eedata_size = 24;                   // constant for size of eedata structure
+
     // the actual eeprom gets stored here
     // the struct is overlayed onto this storage
     union longArray
@@ -30,22 +31,18 @@ class FRAMSTORAGE
     uint8_t byteArray[4];
     } dbuffer;    
     
-    typedef struct eedata 
-    {
-    uint32_t ts;                                             // Timestamp for when this record was created (4 bytes)
-    uint8_t  array[4];                                       // Data for this address
-    int32_t  raw;                                            // raw data storage (adc raw)
-    } ;
-
-    union EERECORD                                           // create union that converts custom structure into byte array
-    {
-    eedata  data;                                            // userland data
-    uint8_t byteArray[eedata_size];                          // byte array to send over i2c or store in fram
+    union EERECORD {                                           // create union that converts custom structure into byte array
+      struct {
+        uint32_t ts;                                           // 4 bytes Timestamp for when this record was created (4 bytes)
+        uint8_t  array[4];                                     // 16 bytes Data for this record
+        int32_t  raw;                                          // 4 bytes raw data storage (adc raw)
+      } data;
+      uint8_t  byteArray[24];                                  // byte array to store in f-ram
     };
 
-    static const uint16_t ee_buffer_size = 70;               // number of recordds in the buffer array
-    static const uint16_t ee_record_size = sizeof(EERECORD); // calculate size of a record in bytes
-    const uint16_t ee_start_byte  = 0x64;                    // eeprom offset is 100 bytes (0x64), save that space for other uses
+    static const uint8_t  ee_buffer_size = 70;               // number of registers in the buffer array
+    static const uint8_t  ee_record_size = sizeof(EERECORD);      // calculate size of a record in bytes
+    static const uint16_t ee_start_byte  = 0x64;             // eeprom offset is 100 bytes (0x64), save that space for other uses
     
     EERECORD fram_buffer[ee_buffer_size];
 
