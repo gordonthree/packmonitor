@@ -43,11 +43,14 @@ uint8_t   hiIalarm_cnt;                                             // counter f
 uint8_t   tAlarm_threshold = 20;                                    // need this many consecutive alarms to engage temp protection
 uint8_t   vAlarm_threshold = 20;                                    // same as above for voltage
 uint8_t   iAlarm_threshold = 5;                                     // need this many alarms to trigger over-current protection
-
+uint8_t   framRegCnt       = 0x70;                                  // room for registers
+uint8_t   framRegSize      = 24;                                    // bytes of memory for every fram register
 char      buff[200];                                                // temporary buffer for working with char strings
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
 
+int       framLoad           (void);
+bool      framSave           (void);
 void      dumpBuffer         (void);
 void      dumpFram           (void);
 void      printConfig        (void);                                // dump various config elements to serial port
@@ -132,7 +135,7 @@ void setup() {
 
   Serial1.print("Loading data from FRAM... ");
 
-  fram.begin(ee_fram);
+  int bytesRead = framLoad();
 
   Serial1.print("complete.\n");
 
@@ -215,7 +218,10 @@ void loop() {
   }
 
   if (iFive>5000) {                 // roughly every 5 seconds
-    bool saveSuccessful = fram.save();  // write memory cache to fram for backup
+    if (timeSet) {
+      bool saveSuccessful = framSave();  // write memory cache to fram for backup
+      if (!saveSuccessful) Serial1.println("******************Save to f-ram failed!*********************");
+    }
   
     hiTalarm_cnt = 0;               // reset temp alarm counter
     loTalarm_cnt = 0;               // same
@@ -223,7 +229,6 @@ void loop() {
     loValarm_cnt = 0;               // same
     hiIalarm_cnt = 0;               // same
 
-    if (!saveSuccessful) Serial1.println("******************Save to f-ram failed!*********************");
 
     iFive = 0;                      // reset five second counter
   }
@@ -848,8 +853,6 @@ void printConfig(){
   Serial1.printf("vBusDiv %f\n", vBusDiv);
   Serial1.printf("vPackDiv %f\n", vPackDiv);
   Serial1.printf("mvA %f\n", mvA);
-  Serial1.printf("record_size %u\n", fram.record_size());
-  Serial1.printf("buffer_size %u\n", fram.buffer_size());
 
 }
 
@@ -867,18 +870,10 @@ void dumpFram(){
   for (eeAddr = 0x21; eeAddr < 0x70; eeAddr++)
   {
     int bytesRead=ee_fram.readBlock((eeAddr * record_size) + start_byte, buffer, record_size);
-    uint8_t * unK = fram.dumpRecord(eeAddr);
 
     Serial1.printf("Raw 0x%x: ", eeAddr);
     for (y=0; y < record_size; y++) {
       val = buffer[y];
-      Serial1.printf("%x ", val);
-    }
-    Serial1.print("\n");
-
-    Serial1.printf("Lib 0x%x: ", eeAddr);
-    for (int s=0; s < record_size; s++) {
-      val = unK[s];
       Serial1.printf("%x ", val);
     }
     Serial1.print("\n");
@@ -890,4 +885,31 @@ void dumpFram(){
 
 void dumpBuffer() {
 // dunno 
+}
+
+int framLoad()
+{
+  uint8_t startByte     = 100;
+  int     bytesRead     = 0;
+  uint8_t dataArray[24];
+
+  for (uint16_t x = 0; x < framRegCnt; x++)
+  {
+    bytesRead += ee_fram.readBlock((x * framRegSize) + startByte, dataArray, framRegSize);
+    fram.addByteArray(x, dataArray);
+  }
+}
+
+// write the buffer into the eeprom
+bool framSave() 
+{
+  bool result;
+  uint8_t startByte = 100;
+
+  for (uint16_t x = 0; x < framRegCnt; x++)
+  {
+    result = ee_fram.writeBlockVerify((x * framRegSize) + startByte, fram.getByteArray(x), framRegSize);
+  }
+
+  return result;
 }

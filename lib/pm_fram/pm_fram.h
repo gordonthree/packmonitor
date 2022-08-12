@@ -54,27 +54,20 @@ class FRAMSTORAGE
   public:
     FRAMSTORAGE();                                                           // empty constructor 
 
-    void begin (I2C_eeprom &_ee_fram);                                       // setup fram connection
-    void load ();                                                            // fills buffer from fram
-    bool save ();                                                            // writes buffer to fram, returns false if write failed to verify
-    
-    void addByteArray  (uint8_t dataAddr, uint32_t ts, uint8_t * byteArray); // update array with a raw byte array (from eeprom really)
+    void      addByteArray  (uint8_t dataAddr, uint8_t * dataArray);          // add byte array data to the buffer
+    uint8_t * getByteArray  (uint8_t dataAddr);                               // return entire data byte array
 
-    void addDouble     (uint8_t dataAddr, uint32_t ts, double doubleVal);    // update array with a double from userland
-    void addUInt       (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);    // update array with a unsigned int from userland
-    void addSInt       (uint8_t dataAddr, uint32_t ts, int32_t intVal);      // update array with a signed integer from userland
-    void addByte       (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);     // update array with a single byte from userland
-    void addRaw        (uint8_t dataAddr, uint32_t ts, int32_t rawVal);      // update array with raw adc data
+    void      addDouble     (uint8_t dataAddr, uint32_t ts, double doubleVal);    // update array with a double from userland
+    void      addUInt       (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);    // update array with a unsigned int from userland
+    void      addSInt       (uint8_t dataAddr, uint32_t ts, int32_t intVal);      // update array with a signed integer from userland
+    void      addByte       (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);     // update array with a single byte from userland
+    void      addRaw        (uint8_t dataAddr, uint32_t ts, int32_t rawVal);      // update array with raw adc data
 
     uint32_t  getTimeStamp  (uint8_t dataAddr);                              // get the timestamp for the record
-    uint8_t * getByteArray  (uint8_t dataAddr);                              // return the raw byte array
     int32_t   getRaw        (uint8_t dataAddr);                              // get raw adc data
     uint32_t  getDataUInt   (uint8_t dataAddr);                              // transform byte array into usigned int
     double    getDataDouble (uint8_t dataAddr);                              // transform byte array into double precision (float)
     int32_t   getDataSInt   (uint8_t dataAddr);                              // transform byte array into signed int
     uint8_t   getDataByte   (uint8_t dataAddr);                              // read one byte from byte array
-    uint8_t * dumpRecord    (uint16_t recordAddr);                           // return everything
-    uint16_t  record_size   (void);
-    uint16_t  buffer_size   (void);
 };
 

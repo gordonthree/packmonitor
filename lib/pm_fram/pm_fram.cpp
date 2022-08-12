@@ -7,55 +7,16 @@ FRAMSTORAGE::FRAMSTORAGE()
   // hello, world
 }
 
-// read the eeprom into the buffer
-void FRAMSTORAGE::begin(I2C_eeprom &_ee_fram)
+
+uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                            // return everything
 {
-  ptr = &_ee_fram;
-  ptr->begin();                                             // init eeprom library
-}
-
-void FRAMSTORAGE::load()
-
-{
-  for (uint16_t x = 0; x < ee_buffer_size; x++)
-  {
-    ptr->readBlock((x * ee_record_size) + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
-  }
-}
-
-uint16_t FRAMSTORAGE::buffer_size()
-{
-  return ee_buffer_size;
-}
-
-uint16_t FRAMSTORAGE::record_size()
-{
-  return ee_record_size;
-}
-
-// write the buffer into the eeprom
-bool FRAMSTORAGE::save() 
-{
-  bool result;
-  for (uint16_t x = 0; x < ee_buffer_size; x++)
-  {
-    result = ptr->writeBlockVerify((x * ee_record_size) + ee_start_byte, fram_buffer[x].byteArray, ee_record_size);
-  }
-
-  return result;
-}
-
-uint8_t * FRAMSTORAGE::dumpRecord(uint16_t x)                            // return everything
-{
-    ptr->readBlock((x * ee_record_size) + ee_start_byte, fram_buffer[0].byteArray, ee_record_size);
-    return fram_buffer[0].byteArray;
+    return fram_buffer[dataAddr].byteArray;
 }
 
 
-void FRAMSTORAGE::addByteArray(uint8_t dataAddr, uint32_t ts, uint8_t * byteArray)           /* load i2c data into buffer */
+void FRAMSTORAGE::addByteArray(uint8_t dataAddr, uint8_t * dataArray)           /* load i2c data into buffer */
 { // memcpy(dst, src, len)
-  fram_buffer[dataAddr].data.ts = ts;
-  memcpy(fram_buffer[dataAddr].data.array, byteArray, 4);
+  memcpy(fram_buffer[dataAddr].byteArray , dataArray, 24);
 }
 
 void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* update array with a double from userland */
@@ -98,12 +59,6 @@ uint32_t FRAMSTORAGE::getTimeStamp(uint8_t dataAddr)                    // get t
   return fram_buffer[dataAddr].data.ts;
 }
 
-
-uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                   // return the entire byte array
-{
-  uint8_t * byteArray = fram_buffer[dataAddr].data.array;
-  return byteArray;
-}
 
 int32_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
