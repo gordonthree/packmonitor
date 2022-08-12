@@ -173,8 +173,10 @@ void loop() {
   if (dumpEEprom) {
     Serial1.print("Flush memory buffer to f-ram... ");
     fram.save();
-    Serial1.println("done.\nDumping eeprom contents...");
-    
+    Serial1.println("done.\nRereading f-ram contents...");
+    fram.load();
+    Serial1.println("done.\nPrinting memory buffer contents...");
+
     byte xx=0x21; // start here
     while (xx<0x65) 
     {
