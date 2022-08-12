@@ -18,7 +18,7 @@ class FRAMSTORAGE
     uint32_t raw;                                            // raw data storage (adc raw)
     } eedata;
 
-    static const int eedata_size = sizeof(eedata);           // save constant for size of eedata structure
+    static const int eedata_size = 24;           // save constant for size of eedata structure
 
     union EERECORD                                           // create union that converts custom structure into byte array
     {
@@ -26,7 +26,7 @@ class FRAMSTORAGE
     uint8_t byteArray[eedata_size];                          // byte array to send over i2c or store in fram
     } ;
 
-    static const uint16_t ee_buffer_size = 70;               // number of recordds in the buffer array
+    static const uint16_t ee_buffer_size = 0x70;               // number of recordds in the buffer array
     static const uint16_t ee_record_size = sizeof(EERECORD); // calculate size of a record in bytes
     const uint16_t ee_start_byte  = 0x64;                    // eeprom offset is 100 bytes (0x64), save that space for other uses
 
@@ -68,7 +68,7 @@ class FRAMSTORAGE
     void addUInt     (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);  // update array with a unsigned int from userland
     void addSInt     (uint8_t dataAddr, uint32_t ts, int32_t intVal);    // update array with a signed integer from userland
     void addByte     (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);   // update array with a single byte from userland
-    void addRaw      (uint8_t dataAddr, uint32_t ts, uint16_t rawVal); // update array with raw adc data
+    void addRaw      (uint8_t dataAddr, uint32_t ts, uint32_t rawVal); // update array with raw adc data
 
     uint32_t  getTimeStamp  (uint8_t dataAddr);                          // get the timestamp for the record
     uint8_t * getByteArray  (uint8_t dataAddr);                          // return the raw byte array

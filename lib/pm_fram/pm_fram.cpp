@@ -69,7 +69,7 @@ void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* u
   fram_buffer[dataAddr].data.array[0] = byteVal;
 }
 
-void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, uint16_t rawVal)   /* update array with a raw adc data (16 bits) */
+void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, uint32_t rawVal)   /* update array with a raw adc data (16 bits) */
 {
   fram_buffer[dataAddr].data.ts       = ts;     // update record timestamp
   fram_buffer[dataAddr].data.raw      = rawVal; // update raw value
