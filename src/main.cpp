@@ -21,9 +21,9 @@ volatile bool purgeTXBuffer    = true;                              // tell loop
 volatile bool dumpEEprom       = false;                             // tell loop to print contents of eeprom buffer to serial
 volatile char txtMessage[50];                                       // alternate buffer for message from Host
 
-volatile uint8_t messageLen     = 0;                                // message from Host length
-volatile time_t  lasttimeSync   = 0;                                // when's the last time Host sent us time?
-volatile time_t  firsttimeSync  = 0;                                // record the timestamp after boot
+volatile uint8_t   messageLen     = 0;                              // message from Host length
+volatile uint32_t  lasttimeSync   = 0;                              // when's the last time Host sent us time?
+volatile uint32_t  firsttimeSync  = 0;                              // record the timestamp after boot
 
 volatile DEBUG_MSGS dbgMsgs[50];                                    // room for messages from inside isr to be printed outside
 volatile uint8_t    dbgMsgCnt  = 0;                                 // counter for how many debug messages are waiting
@@ -153,7 +153,7 @@ void setup() {
   if (CONFIG0!=0) bitSet(CONFIG0, PM_STATUS0_CONFIGSET);       // if config0 is not zero, assume a config has been set, update status
   fram.addByte(PM_REGISTER_STATUS0BYTE, 0, STATUS0);           // init status0
   fram.addByte(PM_REGISTER_STATUS1BYTE, 0, 0);                 // init status1
-
+  setTime(fram.getDataUInt(PM_REGISTER_TIMESYNC));             // set time based on last-sync time from fram
   printConfig();
 } // end setup()
 
@@ -675,11 +675,10 @@ void receiveEvent(size_t howMany) {
         setTime(_isr_timeStamp);                                            // fingers crossed
         HostsetTime = true;                                                 // set flag
         lasttimeSync = _isr_timeStamp;                                      // record timestamp of sync
-        if (!firsttimeSync) firsttimeSync = _isr_timeStamp;                 // if it's the first sync, record in separate variable
+        if (firsttimeSync==0) firsttimeSync = _isr_timeStamp;                 // if it's the first sync, record in separate variable
         uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);        // retrieve status0 byte
         bitSet(STATUS0, PM_STATUS0_TIMESET);                                // set TIMESET bit in status0
         fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0);     // write status0 back to buffer
-        fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, _isr_timeStamp); // save sync time to eeprom
         // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
         // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         // dbgMsgCnt++;
@@ -697,19 +696,22 @@ void receiveEvent(size_t howMany) {
       break;
     case 0x62: // read current timestamp, ulong (read only)
       ulongbuffer.longNumber = _isr_timeStamp;
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);     // convert to byte array and copy to tx buffer
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      fram.addUInt(PM_REGISTER_CURRENTTIME, _isr_timeStamp, _isr_timeStamp);
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x63: // read time since last sync, ulong (read only)
       ulongbuffer.longNumber = now() - lasttimeSync;
       memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, ulongbuffer.longNumber);
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x64: // read time since boot (uptime), ulong (read only)
       ulongbuffer.longNumber = now() - firsttimeSync;
       memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      fram.addUInt(PM_REGISTER_UPTIME, _isr_timeStamp, ulongbuffer.longNumber);
       txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
       _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
@@ -852,6 +854,7 @@ void printConfig(){
   double   mvA         = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
   uint8_t  CONFIG0     = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
   uint32_t lastSync    = fram.getDataUInt(PM_REGISTER_TIMESYNC);
+
   Serial1.printf("Last sync %lu\n", lastSync);
   Serial1.printf("CONFIG0 0x%X\n", CONFIG0);
   Serial1.printf("Current limit %f\n", iLoadHigh);
