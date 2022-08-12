@@ -488,18 +488,16 @@ void receiveEvent(size_t howMany) {
     case 0x24: // get / set high-voltage limit, double
     case 0x25: // get / set low-voltage limit, double
       if (_isr_dataLen>0) // check if this is a read or write?
-      // more than 0 bytes available, this is a write
-      {
+      { // more than 0 bytes available, this is a write
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
         // fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
-        fram.addByteArray(_isr_cmdAddr, _isr_timeStamp,  _isr_cmdData);
+        fram.addDouble(_isr_cmdAddr, _isr_timeStamp,  _isr_HostDouble);
         sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;    
       }
       else
-      // no data was sent, this is a read
-      {
+      { // no data was sent, this is a read
         memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
         txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
         _I2C_DATA_RDY = true;                                                    // let loop know data is ready
@@ -531,7 +529,7 @@ void receiveEvent(size_t howMany) {
       {
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
         // fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
-        fram.addByteArray(_isr_cmdAddr, _isr_timeStamp,  _isr_cmdData);
+        fram.addDouble(_isr_cmdAddr, _isr_timeStamp,  _isr_HostDouble);
         sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;    
@@ -856,34 +854,40 @@ void printConfig(){
 }
 
 void dumpFram(){
-  Serial1.println("Dumping eeprom contents!");
+  Serial1.println("Dumping raw eeprom contents:");
   uint16_t eeAddr;
-  eeAddr = 0; // start here
+  uint16_t y;
+  uint8_t val = 0;
 
-  while (eeAddr<0x65) 
+  // start here
+  const uint16_t record_size = 24;
+  const uint16_t start_byte  = 100;
+  uint8_t buffer[24];
+
+  for (eeAddr = 0x21; eeAddr < 0x70; eeAddr++)
   {
-    // Serial1.printf("Addr %u: ", eeAddr);
-    uint8_t * buffer = fram.dumpRecord(eeAddr);
-    Serial1.printf("Record %u (%u bytes): ", eeAddr, sizeof(buffer));
-    for (int y=0; y<80; y++) 
-    {
-      Serial.printf("0x%X ", buffer[y]);
+    int bytesRead=ee_fram.readBlock((eeAddr * record_size) + start_byte, buffer, record_size);
+    uint8_t * unK = fram.dumpRecord(eeAddr);
+
+    Serial1.printf("Raw 0x%x: ", eeAddr);
+    for (y=0; y < record_size; y++) {
+      val = buffer[y];
+      Serial1.printf("%x ", val);
     }
     Serial1.print("\n");
 
-    eeAddr++;
+    Serial1.printf("Lib 0x%x: ", eeAddr);
+    for (int s=0; s < record_size; s++) {
+      val = unK[s];
+      Serial1.printf("%x ", val);
     }
+    Serial1.print("\n");
+  }
+
   Serial1.println("Complete.");
+
 }
 
 void dumpBuffer() {
-     //   "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %i\n",
-    //   xx,
-    //   fram.getTimeStamp(xx), 
-    //   fram.getDataDouble(xx),
-    //   fram.getDataUInt(xx),
-    //   fram.getDataSInt(xx),
-    //   fram.getRaw(xx)
-    // );
- 
+// dunno 
 }
