@@ -160,7 +160,7 @@
 
 * Returns the current bus voltage in volts
 
-#### 0x3F 
+#### 0x3F
 
 * (reserved)
 

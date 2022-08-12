@@ -1,6 +1,7 @@
 #include <I2C_eeprom.h>
 #include "pm_fram.h"
 
+
 // provide fram eeprom address and device size
 FRAMSTORAGE::FRAMSTORAGE() 
 {
@@ -33,7 +34,7 @@ void FRAMSTORAGE::begin()
 //   }
 // }
 
-void FRAMSTORAGE::addArrayData(uint8_t dataAddr, uint8_t * byteArray)           /* load i2c data into buffer */
+void FRAMSTORAGE::addByteArray(uint8_t dataAddr, uint8_t * dataArray)           /* load i2c data into buffer */
 { // memcpy(dst, src, len)
   memcpy(fram_buffer[dataAddr].byteArray, byteArray, 24);
 }
@@ -73,8 +74,7 @@ void FRAMSTORAGE::addByte(uint8_t dataAddr, uint32_t ts, uint8_t byteVal)   /* u
   fram_buffer[dataAddr].data.array[0] = byteVal;
 }
 
-void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, uint32_t rawVal)   /* update array with a raw adc data (16 bits) */
-{
+void FRAMSTORAGE::addRaw(uint8_t dataAddr, uint32_t ts, int32_t rawVal)   /* update array with a raw adc data (16 bits) */
   fram_buffer[dataAddr].data.ts       = ts;     // update record timestamp
   fram_buffer[dataAddr].data.raw      = rawVal; // update raw value
 }
@@ -84,7 +84,7 @@ uint32_t FRAMSTORAGE::getTimeStamp(uint8_t dataAddr)                    // get t
   return fram_buffer[dataAddr].data.ts;
 }
 
-uint32_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
+int32_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
   return fram_buffer[dataAddr].data.raw;
 }

@@ -4,13 +4,16 @@
 #include <Wire.h>
 #include <I2C_eeprom.h>
 
+
 // a class to manage the fram data buffer
 class FRAMSTORAGE 
 {
   private:
+    // static const uint8_t eedata_size = 24;                   // constant for size of eedata structure
+
     // the actual eeprom gets stored here
     // the struct is overlayed onto this storage
-
+  
     typedef struct  
     {
     uint32_t ts;                                             // Timestamp for when this record was created (4 bytes)
@@ -29,7 +32,7 @@ class FRAMSTORAGE
     static const uint16_t ee_buffer_size = 0x70;             // number of recordds in the buffer array
     static const uint16_t ee_record_size = sizeof(EERECORD); // calculate size of a record in bytes
     const uint16_t ee_start_offset       = 0x64;             // eeprom offset is 100 bytes (0x64), save that space for other uses
-
+  
     union longArray
     {
     int32_t longNumber=0;
@@ -46,8 +49,8 @@ class FRAMSTORAGE
     {
     double doubleVal;
     uint8_t byteArray[4];
-    } dbuffer;    
- 
+    } dbuffer;
+  
     EERECORD fram_buffer[ee_buffer_size];
 
     // I2C_eeprom _fram;
