@@ -72,7 +72,7 @@ class FRAMSTORAGE
 
     uint32_t  getTimeStamp  (uint8_t dataAddr);                          // get the timestamp for the record
     uint8_t * getByteArray  (uint8_t dataAddr);                          // return the raw byte array
-    uint16_t  getRaw        (uint8_t dataAddr);                          // get raw adc data
+    uint32_t  getRaw        (uint8_t dataAddr);                          // get raw adc data
     uint32_t  getDataUInt   (uint8_t dataAddr);                          // transform byte array into usigned int
     double    getDataDouble (uint8_t dataAddr);                          // transform byte array into double precision (float)
     int32_t   getDataSInt   (uint8_t dataAddr);                          // transform byte array into signed int
