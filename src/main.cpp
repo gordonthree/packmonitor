@@ -597,9 +597,6 @@ void receiveEvent(size_t howMany) {
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
         // fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
         fram.addDouble(_isr_cmdAddr, _isr_timeStamp,  _isr_HostDouble);
-        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
-        dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-        dbgMsgCnt++;    
       }
       else
       // no data was sent, this is a read
@@ -609,10 +606,14 @@ void receiveEvent(size_t howMany) {
         _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       }
       break;
+      
     case 0x2C: // read status0, byte (read only)
     case 0x2D: // read status1, byte (read only)
       txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
       txData.dataLen = 1;                                         // single byte to send
+        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX cmd 0x%X data 0x%x", _isr_cmdAddr, txData.cmdData[0]);
+        dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+        dbgMsgCnt++;    
       _I2C_DATA_RDY = true;                                       // let loop know data is ready
       break;
 
