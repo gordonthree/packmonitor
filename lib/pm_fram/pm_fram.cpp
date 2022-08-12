@@ -87,7 +87,7 @@ uint8_t * FRAMSTORAGE::getByteArray(uint8_t dataAddr)                   // retur
   return byteArray;
 }
 
-uint16_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
+uint32_t FRAMSTORAGE::getRaw(uint8_t dataAddr)                        // don't know what this would be useful for
 {
   return fram_buffer[dataAddr].data.raw;
 }
