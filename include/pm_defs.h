@@ -15,20 +15,20 @@
 #define PM_REGISTER_STATUS1BYTE         0x2D // read status1 register byte
 #define PM_REGISTER_THERMDIVISOR        0x2E // read / write thermistor scaling factor
 #define PM_REGISTER_CLEARCOLCNTR        0x30 // clear coulomb counter
-#define PM_REGISTER_READCOLCNTR         0x31 // read coulomb counter
-#define PM_REGISTER_CLEARAMPSCNTRS      0x32 // clear amperage counters
+#define PM_REGISTER_CLEARAMPSCNTRS      0x31 // clear amperage counters
+#define PM_REGISTER_READCOLCNTR         0x32 // read coulomb counter
 #define PM_REGISTER_READLOADAMPS        0x33 // display current load amperage
 #define PM_REGISTER_TOTALAMPSIN         0x34 // total amps in
 #define PM_REGISTER_TOTALAMPSOUT        0x35 // total amps out
 #define PM_REGISTER_LIFEAMPSIN          0x36 // display lifetime total charge amps
 #define PM_REGISTER_LIFEAMPSOUT         0x37 // display lifetime total discharge amps
-#define PM_REGISTER_CLEARVOLTMEM        0x38 // clear voltage record memory
+#define PM_REGISTER_READBUSVOLTS        0x38 // read bus voltage right now
 #define PM_REGISTER_READPACKVOLTS       0x39 // read pack voltage right now
 #define PM_REGISTER_READLOWVOLTS        0x3A // read low pack voltage record
-#define PM_REGISTER_READLOWVOLTSTIME    0x3B // read low pack voltage record timestamp 
-#define PM_REGISTER_READHIVOLTS         0x3C // read high pack voltage record
-#define PM_REGISTER_READHIVOLTSTIME     0x3D // read high pack voltage record timestamp
-#define PM_REGISTER_READBUSVOLTS        0x3E // read bus voltage right now
+#define PM_REGISTER_READHIVOLTS         0x3B // read high pack voltage record
+// #define PM_REGISTER_READLOWVOLTSTIME    0x3C // read low pack voltage record timestamp 
+// #define PM_REGISTER_READHIVOLTSTIME     0x3D // read high pack voltage record timestamp
+#define PM_REGISTER_CLEARVOLTMEM        0x3E // clear voltage record memory
 #define PM_REGISTER_CLEARTEMPS          0x40 // clear temperature record memory
 #define PM_REGISTER_READDEGCT0          0x41 // read t0 degrees c
 #define PM_REGISTER_READDEGCT1          0x42 // read t1 degrees c
@@ -39,20 +39,20 @@
 #define PM_REGISTER_READT0HIGH          0x47 // read t0 high temp record
 #define PM_REGISTER_READT1HIGH          0x48 // read t1 high temp record
 #define PM_REGISTER_READT2HIGH          0x49 // read t2 high temp record
-#define PM_REGISTER_READT0LOWTS         0x4A // read t0 low temp record timestamp
-#define PM_REGISTER_READT1LOWTS         0x4B // read t1 low temp record timestamp
-#define PM_REGISTER_READT2LOWTS         0x4C // read t2 low temp record timestamp
-#define PM_REGISTER_READT0HITS          0x4D // read t0 high temp record timestamp
-#define PM_REGISTER_READT1HITS          0x4E // read t1 high temp record timestamp
-#define PM_REGISTER_READT2HITS          0x4F // read t2 high temp record timestamp
-#define PM_REGISTER_CLEARDISCHIST       0x50 // clear disconnect history
+// #define PM_REGISTER_READT0LOWTS         0x4A // read t0 low temp record timestamp
+// #define PM_REGISTER_READT1LOWTS         0x4B // read t1 low temp record timestamp
+// #define PM_REGISTER_READT2LOWTS         0x4C // read t2 low temp record timestamp
+// #define PM_REGISTER_READT0HITS          0x4D // read t0 high temp record timestamp
+// #define PM_REGISTER_READT1HITS          0x4E // read t1 high temp record timestamp
+// #define PM_REGISTER_READT2HITS          0x4F // read t2 high temp record timestamp
+#define PM_REGISTER_LASTDISCREASON      0x50 // last disconnect reason code
 #define PM_REGISTER_TOTOVRCURDISC       0x51 // total over current disconnects
 #define PM_REGISTER_TOTUNDRVLTDISC      0x52 // total under voltage disconnects
 #define PM_REGISTER_TOTOVRVLTDISC       0x53 // total over voltage disconnects
 #define PM_REGISTER_TOTLOWRTEMPDISC     0x54 // total low temp disconnects
 #define PM_REGISTER_TOTHITEMPDISC       0x55 // total high temp disconnects
-#define PM_REGISTER_LASTDISCTIME        0x56 // timestatmp for last disconnect
-#define PM_REGISTER_LASTDISCREASON      0x57 // last disconnect reason code
+// #define PM_REGISTER_LASTDISCTIME        0x56 // timestatmp for last disconnect
+#define PM_REGISTER_CLEARDISCHIST       0x5F // clear disconnect history
 #define PM_REGISTER_SETEPOCHTIME        0x60 // set epoch time
 #define PM_REGISTER_FIRSTINITTIME       0x61 // timestamp of last eeprom initilization
 #define PM_REGISTER_CURRENTTIME         0x62 // read current epoch time
