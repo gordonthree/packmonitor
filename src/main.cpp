@@ -20,6 +20,7 @@ volatile bool _I2C_CMD_RECV    = false;                             // flag that
 volatile bool purgeTXBuffer    = true;                              // tell loop() to clear the TX buffer
 volatile bool dumpEEprom       = false;                             // tell loop to print contents of eeprom buffer to serial
 volatile char txtMessage[50];                                       // alternate buffer for message from Host
+volatile bool readNext         = false;
 
 volatile uint8_t   messageLen     = 0;                              // message from Host length
 volatile uint32_t  lasttimeSync   = 0;                              // when's the last time Host sent us time?
@@ -519,6 +520,19 @@ void receiveEvent(size_t howMany) {
   txData.dataLen                    = _isr_dataSize; // set data length here just in case I forgot later
   _I2C_DATA_RDY                     = false;         // nothing to send yet
 
+  if (howMany>0) 
+  {
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host writing reg 0x%X bytecnt ", _isr_cmdAddr, howMany);
+    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    dbgMsgCnt++;                                                        // increment debug message counter
+  }
+  else
+  {
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host wants to read reg 0x%X", _isr_cmdAddr);
+    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    dbgMsgCnt++;                                                        // increment debug message counter
+  }
+
   while (Wire.available()) {
     _isr_HostByte = (uint8_t) Wire.read();
     // if (_isr_HostByte != 0xFF) 
@@ -782,7 +796,6 @@ void receiveEvent(size_t howMany) {
 // function that executes whenever data is requested by Host
 // this function is registered as an event, see setup()
 void requestEvent() {   
-  // char reqBuff[80];                          // Host has requested data
   reqEvnt = true;   
   // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX event; i2c_data_rdy=0x%X and %u data bytes", _I2C_DATA_RDY, txData.dataLen);
   // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
