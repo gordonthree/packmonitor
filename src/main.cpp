@@ -26,18 +26,18 @@ volatile uint8_t   messageLen     = 0;                              // message f
 volatile uint32_t  lasttimeSync   = 0;                              // when's the last time Host sent us time?
 volatile uint32_t  firsttimeSync  = 0;                              // record the timestamp after boot
 
-volatile DEBUG_MSGS dbgMsgs[50];                                    // room for messages from inside isr to be printed outside
-volatile uint8_t    dbgMsgCnt  = 0;                                 // counter for how many debug messages are waiting
+volatile DEBUG_MSGS  dbgMsgs[50];                                   // room for messages from inside isr to be printed outside
+volatile uint8_t     dbgMsgCnt  = 0;                                // counter for how many debug messages are waiting
 
 volatile I2C_TX_DATA txData;
-// volatile ADC_DATA    adcDataBuffer[adcBufferSize];  // Enough room to store three adc readings
+volatile uint8_t     i2cRegAddr = 0;                                // keep track of the command address for multi-register reads
 
 NAU7802     extAdc;                                                 // NAU7802 ADC device
 FRAMSTORAGE fram;                                                   // access the array for storing eeprom contents
 I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);                   // setup the eeprom here in the global scope
 
 const uint8_t ee_record_size    = 24;                               // save constant for size of eedata structure
-const uint8_t ee_buffer_size    = 0x70;                             // number of recordds in the buffer array
+const uint8_t ee_buffer_size    = 0x7F;                             // number of recordds in the buffer array
 const uint8_t ee_start_offset   = 0x64;                             // eeprom offset is 100 bytes (0x64), save that space for other uses
 const uint8_t adcUpdateInterval = 250;                              // every 250 msec approximately
 
@@ -212,8 +212,11 @@ void loop() {
     recvEvnt = false;             // reset flag
     reqEvnt  = false;             // reset flag
 
+    // update current time register
+    if (timeSet()) fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
+
     // update uptime if clock has been set
-    if (firsttimeSync) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
+    if (firsttimeSync!=0) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
 
     // update last time sync if needed
     if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
@@ -516,19 +519,21 @@ void receiveEvent(size_t howMany) {
   union ulongArray  ulongbuffer;                     // convert between byte array and ulong int
 
   _isr_cmdAddr                      = Wire.read();   // read first byte, store it as command address
+  _isr_cmdAddr                     &= 0x7F;          // prevent reading past end of the array, loop address back to zero
+  howMany--;                                         // decrement available bytes counter
   recvEvnt                          = true;          // set flag to toggle LED in loop()
   txData.dataLen                    = _isr_dataSize; // set data length here just in case I forgot later
   _I2C_DATA_RDY                     = false;         // nothing to send yet
 
   if (howMany>0) 
   {
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host writing reg 0x%X bytecnt ", _isr_cmdAddr, howMany);
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host writing reg 0x%X byte count %u", _isr_cmdAddr, howMany);
     dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
     dbgMsgCnt++;                                                        // increment debug message counter
   }
   else
   {
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host wants to read reg 0x%X", _isr_cmdAddr);
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", _isr_cmdAddr);
     dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
     dbgMsgCnt++;                                                        // increment debug message counter
   }
@@ -567,12 +572,12 @@ void receiveEvent(size_t howMany) {
         sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;    
-      }
-      else
-      { // no data was sent, this is a read
-        memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-        txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-        _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // }
+      // else
+      // { // no data was sent, this is a read
+      //   memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      //   txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      //   _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       }
       break;
 
@@ -584,12 +589,12 @@ void receiveEvent(size_t howMany) {
       {
         _isr_HostByte = _isr_cmdData[0];                         // single byte!
         fram.addByte(_isr_cmdAddr, _isr_timeStamp, _isr_HostByte);  // save to buffer
-      }
-      else
-      {
-        txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
-        txData.dataLen = 1;                                         // single byte to send
-        _I2C_DATA_RDY = true;                                       // let loop know data is ready
+      // }
+      // else
+      // {
+      //   txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
+      //   txData.dataLen = 1;                                         // single byte to send
+      //   _I2C_DATA_RDY = true;                                       // let loop know data is ready
       }
       break;
     case 0x29: // r/w current sensor mva, double
@@ -602,13 +607,13 @@ void receiveEvent(size_t howMany) {
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
         // fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
         fram.addDouble(_isr_cmdAddr, _isr_timeStamp,  _isr_HostDouble);
-      }
-      else
-      // no data was sent, this is a read
-      {
-        memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-        txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-        _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // }
+      // else
+      // // no data was sent, this is a read
+      // {
+      //   memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      //   txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      //   _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       }
       break;
       
@@ -643,14 +648,14 @@ void receiveEvent(size_t howMany) {
     case 0x3C: // read highest voltage memory, double (read only)
     case 0x3D: // read highest voltage timestamp, double (read only)
     case 0x3E: // read instant bus voltage, double (read only)
-      memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-      _isr_HostDouble = getDouble(fram.getByteArray(_isr_cmdAddr));
-      sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
-      dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-      dbgMsgCnt++;
+      // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // _isr_HostDouble = getDouble(fram.getByteArray(_isr_cmdAddr));
+      // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
+      // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+      // dbgMsgCnt++;
 
-      txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
 
     case 0x38: // clear voltage memory, (write only)
@@ -695,9 +700,9 @@ void receiveEvent(size_t howMany) {
     case 0x4E: // read t1 high timestamp, unsigned long (read only)
     case 0x4F: // read t1 high timestamp, unsigned long (read only)
       // ulongbuffer.longNumber = fram.getDataUInt(_isr_cmdAddr);
-      memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-      txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
 
     case 0x50: // clear disconnect history (write only)
@@ -716,15 +721,15 @@ void receiveEvent(size_t howMany) {
     case 0x54: // read total under-temp discon, uint (read only)
     case 0x55: // read total over-temp discon, uint (read only)
     case 0x56: // read last discon timestamp, ulong (read only)
-      memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-      txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
 
     case 0x57: // read last discon reason code, byte (read only)
-      txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
-      txData.dataLen    = 1;                                      // single byte to send
-      _I2C_DATA_RDY     = true;                                   // let loop know data is ready
+      // txData.cmdData[0] = fram.getDataByte(_isr_cmdAddr);         // read single byte from buffer
+      // txData.dataLen    = 1;                                      // single byte to send
+      // _I2C_DATA_RDY     = true;                                   // let loop know data is ready
       break;
 
     case 0x60: // set time from Host (write only)
@@ -752,32 +757,32 @@ void receiveEvent(size_t howMany) {
       break;
 
     case 0x61: // read first-init timestamp, ulong (read only)
-      memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
-      txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                                    // let loop know data is ready
+      // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
+      // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
     case 0x62: // read current timestamp, ulong (read only)
-      ulongbuffer.longNumber = _isr_timeStamp;
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);     // convert to byte array and copy to tx buffer
-      txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
-      fram.addUInt(PM_REGISTER_CURRENTTIME, _isr_timeStamp, _isr_timeStamp);
-      _I2C_DATA_RDY = true;                                             // let loop know data is ready
+      // ulongbuffer.longNumber = _isr_timeStamp;
+      // memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);     // convert to byte array and copy to tx buffer
+      // txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      // fram.addUInt(PM_REGISTER_CURRENTTIME, _isr_timeStamp, _isr_timeStamp);
+      // _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x63: // read time since last sync, ulong (read only)
-      ulongbuffer.longNumber = now() - lasttimeSync;
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
-      fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, ulongbuffer.longNumber);
-      txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                             // let loop know data is ready
+      // ulongbuffer.longNumber = now() - lasttimeSync;
+      // memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      // fram.addUInt(PM_REGISTER_TIMESYNC, _isr_timeStamp, ulongbuffer.longNumber);
+      // txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
     case 0x64: // read time since boot (uptime), ulong (read only)
-      ulongbuffer.longNumber = now() - firsttimeSync;
-      memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
-      fram.addUInt(PM_REGISTER_UPTIME, _isr_timeStamp, ulongbuffer.longNumber);
-      txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
-      _I2C_DATA_RDY = true;                                             // let loop know data is ready
+      // ulongbuffer.longNumber = now() - firsttimeSync;
+      // memcpy(txData.cmdData, ulongbuffer.byteArray, _isr_dataSize);          // convert to byte array and copy to tx buffer
+      // fram.addUInt(PM_REGISTER_UPTIME, _isr_timeStamp, ulongbuffer.longNumber);
+      // txData.dataLen = 4;                                               // tell requestEvent to send this many bytes
+      // _I2C_DATA_RDY = true;                                             // let loop know data is ready
       break;
-    case 0x77: // dump eeprom
+    case 0x7F: // dump eeprom
       dumpEEprom = true;
       break;
     default:// unknown command
@@ -788,9 +793,7 @@ void receiveEvent(size_t howMany) {
       }
       break;
   } // end switch
-  // sprintf(buff, "Receive event triggered. Command 0x%X", rxData.cmdAddr);
-  // Serial1.println(buff);
-  // purgeRXBuffer = true; // ask main loop() to purge buffer
+
 } // end of handleEvent
 
 // function that executes whenever data is requested by Host
@@ -801,14 +804,22 @@ void requestEvent() {
   // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
   // dbgMsgCnt++;                                                        // increment debug message counter
 
-  if (_I2C_DATA_RDY) {
-    _I2C_DATA_RDY = false;                              // set flag that we had this interaction
-    Wire.write((const uint8_t *) txData.cmdData, txData.dataLen);
-  } else {
-    sprintf((char) txData.cmdData,"Client 0x%X ready!", I2C_CLIENT_ADDR);
-    Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
-  }
-  purgeTXBuffer=true;                                // purge TX buffer
+  // if (_I2C_DATA_RDY) {
+  //   _I2C_DATA_RDY = false;                              // set flag that we had this interaction
+  //   Wire.write((const uint8_t *) txData.cmdData, txData.dataLen);
+  // } else {
+  //   sprintf((char) txData.cmdData,"Client 0x%X ready!", I2C_CLIENT_ADDR);
+  //   Wire.write((char) txData.cmdData);                         // didn't have anything to send? respond with message of 6 bytes
+  // }
+  // purgeTXBuffer=true;                                // purge TX buffer
+
+  // rather than formatting data in the ISR, send entire register records (24 bytes),
+  // and let the host do what it wants with it
+
+  i2cRegAddr &= 0x7F;                                           // wrap pointer if needed
+  Wire.write(fram.getArrayData(i2cRegAddr), ee_record_size);    // write register contents to bus
+  i2cRegAddr++;                                                 // increment register pointer
+  
 }
 
 void scanI2C() {
