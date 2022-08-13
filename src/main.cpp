@@ -54,8 +54,9 @@ char      buff[200];                                                // temporary
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
 
-void      framSave();
-void      framLoad();
+void      framSave();                                               // write in-ram buffer to fram chip
+void      framLoad();                                               // populate in-ram buffer from fram chip
+void      framDump();                                               // sync buffer contents with fram chip, dump contents of buffer
 void      printConfig        (void);                                // dump various config elements to serial port
 void      updateReadings     (void);                                // read various sensors and update memory
 void      scanI2C            (void);                                // scan local client bus
@@ -154,10 +155,11 @@ void setup() {
 
   uint8_t STATUS0 = 0;
   uint8_t CONFIG0 = fram.getDataByte(PM_REGISTER_CONFIG0BYTE); // grab config0 byte
-  if (CONFIG0!=0) bitSet(STATUS0, PM_STATUS0_CONFIGSET);       // if config0 is not zero, assume a config has been set, update status
+  if (CONFIG0!=0) STATUS0 = 0x80;                              // if config0 is not zero, assume a config has been set, update status
   fram.addByte(PM_REGISTER_STATUS0BYTE, 0, STATUS0);           // init status0
   fram.addByte(PM_REGISTER_STATUS1BYTE, 0, 0);                 // init status1
   setTime(fram.getDataUInt(PM_REGISTER_TIMESYNC));             // set time based on last-sync time from fram
+  
   printConfig();
 } // end setup()
 
@@ -180,28 +182,7 @@ void loop() {
   digitalWrite(LED4, HostsetTime);
 
   if (dumpEEprom) {
-    Serial1.print("Flush memory buffer to f-ram... ");
-    framSave();
-    Serial1.println("done.\nRereading f-ram contents...");
-    framLoad();
-    Serial1.println("done.\nPrinting memory buffer contents...");
-
-    byte xx=0x21; // start here
-    while (xx<0x65) 
-    {
-      Serial1.printf(
-        "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %li\n",
-        xx,
-        fram.getTimeStamp(xx), 
-        fram.getDataDouble(xx),
-        fram.getDataUInt(xx),
-        fram.getDataSInt(xx),
-        fram.getRaw(xx)
-      );
-      xx++;
-    }
-    Serial1.println("Complete.");
-    dumpEEprom = false;
+    framDump();
   }
 
   if (timeSet && FirstRun) {
@@ -215,14 +196,6 @@ void loop() {
     updateReadings();
     adcUpdateCnt = 0; // reset counter for adc update delay
   }
-  
-  // debug print
-  // Serial1.printf("extADC 1: %f (%u) ADC 2: %f (%u)\n", 
-  //   fram.getDataDouble(PM_REGISTER_READPACKVOLTS)/1000.0,
-  //   fram.getRaw(PM_REGISTER_READPACKVOLTS),
-  //   fram.getDataDouble(PM_REGISTER_READLOADAMPS)/1000.0,
-  //   fram.getRaw(PM_REGISTER_READLOADAMPS));
-
   
   if (txtmsgWaiting) {            // print message sent by Host
     txtmsgWaiting = false;        // clear flag
@@ -748,10 +721,12 @@ void receiveEvent(size_t howMany) {
         setTime(_isr_timeStamp);                                            // fingers crossed
         HostsetTime = true;                                                 // set flag
         lasttimeSync = _isr_timeStamp;                                      // record timestamp of sync
-        if (firsttimeSync==0) firsttimeSync = _isr_timeStamp;                 // if it's the first sync, record in separate variable
+        if (firsttimeSync==0) firsttimeSync = _isr_timeStamp;               // if it's the first sync, record in separate variable
+        
         uint8_t STATUS0 = fram.getDataByte(PM_REGISTER_STATUS0BYTE);        // retrieve status0 byte
         bitSet(STATUS0, PM_STATUS0_TIMESET);                                // set TIMESET bit in status0
         fram.addByte(PM_REGISTER_STATUS0BYTE, _isr_timeStamp, STATUS0);     // write status0 back to buffer
+
         // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Timestamp %lu", _isr_timeStamp);
         // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         // dbgMsgCnt++;
@@ -961,4 +936,30 @@ void framSave()
   {
     ee_fram.writeBlock((x * ee_record_size) + ee_start_offset, fram.getArrayData(x), ee_record_size);
   }
+}
+
+void framDump()
+{
+  Serial1.print("Flush memory buffer to f-ram... ");
+  framSave();
+  Serial1.println("done.\nRereading f-ram contents...");
+  framLoad();
+  Serial1.println("done.\nPrinting memory buffer contents...");
+
+  byte xx=0x21; // start here
+  while (xx<0x65) 
+  {
+    Serial1.printf(
+      "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %li\n",
+      xx,
+      fram.getTimeStamp(xx), 
+      fram.getDataDouble(xx),
+      fram.getDataUInt(xx),
+      fram.getDataSInt(xx),
+      fram.getRaw(xx)
+    );
+    xx++;
+  }
+  Serial1.println("Complete.");
+  dumpEEprom = false;
 }
