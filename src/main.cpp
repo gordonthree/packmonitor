@@ -208,8 +208,8 @@ void loop() {
     ledX = ledX ^ 1;              // xor previous state
     digitalWrite(LED1, ledX);     // turn the LED on and off to show program running
     
-    recvEvnt = false; // reset flag
-    reqEvnt  = false; // reset flag
+    recvEvnt = false;             // reset flag
+    reqEvnt  = false;             // reset flag
 
     // update uptime if clock has been set
     if (firsttimeSync) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
@@ -218,17 +218,17 @@ void loop() {
     if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
   }
 
-  if (iFive>5000) {               // roughly every 5 seconds
+  if (iFive>5000) {              // roughly every 5 seconds
     framSave();                  // write memory cache to fram for backup
   
-    hiTalarm_cnt = 0;               // reset temp alarm counter
-    loTalarm_cnt = 0;               // same
-    hiValarm_cnt = 0;               // reset voltage alarm counter
-    loValarm_cnt = 0;               // same
-    hiIalarm_cnt = 0;               // same
+    hiTalarm_cnt = 0;            // reset temp alarm counter
+    loTalarm_cnt = 0;            // same
+    hiValarm_cnt = 0;            // reset voltage alarm counter
+    loValarm_cnt = 0;            // same
+    hiIalarm_cnt = 0;            // same
 
 
-    iFive = 0;                      // reset five second counter
+    iFive = 0;                   // reset five second counter
   }
 
   if (dbgMsgCnt>0) { // display any debug messages generated inside the ISRs
