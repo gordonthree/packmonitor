@@ -29,11 +29,12 @@ struct DEBUG_MSGS {
 
 typedef struct 
 {
-  double  tempReading = 0.0;
-  double  lowReading  = 0.0;
-  double  highReading = 0.0;
+  float  tempReading = 0.0;
+  float  lowReading  = 200.0;
+  float  highReading = -100.0;
   uint8_t sensorAddr  = 0; 
 } tempsensor_t;
+
 union ulongArray
 {
   uint32_t longNumber=0;
@@ -53,11 +54,11 @@ union longArray
 };
 
 union doubleArray {
-  double doubleVal;
+  float doubleVal;
   uint8_t byteArray[4];
 };
 
-double raw2amps(uint32_t rawVal)
+float raw2amps(uint32_t rawVal)
 {
     float mvPa    = 0.136;  // 0.136v or 136mV per amp
     float Amps    = 0.0;
@@ -70,7 +71,7 @@ double raw2amps(uint32_t rawVal)
     return Amps;
 }
 
-double raw2volts(uint32_t rawVal, float scale)
+float raw2volts(uint32_t rawVal, float scale)
 {
     float Volts   = 0.0;
     float sysVcc  = 5.09;
@@ -92,7 +93,7 @@ double raw2volts(uint32_t rawVal, float scale)
 * \return              The temperature in 0.1 °C
 *
 */
-double raw2temp(unsigned int adc_value){
+float raw2temp(unsigned int adc_value){
  
   /* Read values directly from the table. */
   return (double) NTC_table[ adc_value ] / 100.0;
