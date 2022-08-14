@@ -48,7 +48,6 @@ class FRAMSTORAGE
     union doubleArray
     {
       float doubleVal;
-      #endif
       uint8_t byteArray[4];
     } dbuffer;
   
