@@ -280,6 +280,7 @@ void updateReadings() {
   bool    loValarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_EMAUNDVLTPROT);        // test if under-temp protection is enabled
   bool    hiValarm_ena = bit_is_set(CONFIG0, PM_CONFIG0_ENAOVRVLTPROT);        // test if under-temp protection is enabled
   
+  int32_t  framRaw     = 0;
   int32_t  rawAdc      = 0;
   double   rawDouble   = 0.0;
   uint32_t timeStamp   = now();
@@ -303,16 +304,20 @@ void updateReadings() {
 
     // update low temp record
     tempReadings[0].lowReading = fram.getDataDouble(PM_REGISTER_READT0LOW);
-    if (rawDouble<tempReadings[0].lowReading) {
+    framRaw                    = fram.getRaw       (PM_REGISTER_READT0LOW);
+    if (rawDouble<tempReadings[0].lowReading || framRaw==0) {
       tempReadings[0].lowReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT0LOW, timeStamp, tempReadings[0].lowReading);
+      fram.addRaw   (PM_REGISTER_READT0LOW, timeStamp, rawAdc);
     } 
 
     // update high temp record
     tempReadings[0].highReading = fram.getDataDouble(PM_REGISTER_READT0HIGH);
-    if (rawDouble>tempReadings[0].highReading) {
+    framRaw                     = fram.getRaw       (PM_REGISTER_READT0HIGH);
+    if (rawDouble>tempReadings[0].highReading || framRaw==0) {
       tempReadings[0].highReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT0HIGH, timeStamp, tempReadings[0].highReading);
+      fram.addRaw   (PM_REGISTER_READT0HIGH, timeStamp, rawAdc);
     }
   }
 
@@ -335,18 +340,21 @@ void updateReadings() {
 
     // update low temp record
     tempReadings[1].lowReading = fram.getDataDouble(PM_REGISTER_READT1LOW);
-    if (rawDouble<tempReadings[1].lowReading) {
+    framRaw                    = fram.getRaw       (PM_REGISTER_READT1LOW);
+    if (rawDouble<tempReadings[1].lowReading || framRaw==0) {
       tempReadings[1].lowReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT1LOW, timeStamp, tempReadings[1].lowReading);
+      fram.addRaw   (PM_REGISTER_READT1LOW, timeStamp, rawAdc);
     } 
 
     // update high temp record
     tempReadings[1].highReading = fram.getDataDouble(PM_REGISTER_READT1HIGH);
-    if (rawDouble>tempReadings[1].highReading) {
+    framRaw                     = fram.getRaw       (PM_REGISTER_READT1HIGH);
+    if (rawDouble>tempReadings[1].highReading || framRaw==0) {
       tempReadings[1].highReading = rawDouble;
-      fram.addDouble(PM_REGISTER_READT0HIGH, timeStamp, tempReadings[1].highReading);
+      fram.addDouble(PM_REGISTER_READT1HIGH, timeStamp, tempReadings[1].highReading);
+      fram.addRaw   (PM_REGISTER_READT1HIGH, timeStamp, rawAdc);
     }
-
   }
 
   rawAdc = readADC(ADC3, 20);                                                  // update value for internal adc3
@@ -368,16 +376,20 @@ void updateReadings() {
 
     // update low temp record
     tempReadings[2].lowReading = fram.getDataDouble(PM_REGISTER_READT2LOW);
-    if (rawDouble<tempReadings[2].lowReading) {
+    framRaw                    = fram.getRaw       (PM_REGISTER_READT2LOW);
+    if (rawDouble<tempReadings[2].lowReading || framRaw==0) {
       tempReadings[2].lowReading = rawDouble;
-      fram.addDouble(PM_REGISTER_READT2LOW, timeStamp, tempReadings[2].lowReading);
+      fram.addDouble(PM_REGISTER_READT2LOW, timeStamp, tempReadings[1].lowReading);
+      fram.addRaw   (PM_REGISTER_READT2LOW, timeStamp, rawAdc);
     } 
 
     // update high temp record
     tempReadings[2].highReading = fram.getDataDouble(PM_REGISTER_READT2HIGH);
-    if (rawDouble>tempReadings[2].highReading) {
+    framRaw                     = fram.getRaw       (PM_REGISTER_READT2HIGH);
+    if (rawDouble>tempReadings[2].highReading || framRaw==0) {
       tempReadings[2].highReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT2HIGH, timeStamp, tempReadings[2].highReading);
+      fram.addRaw   (PM_REGISTER_READT2HIGH, timeStamp, rawAdc);
     }
   }
 
@@ -401,6 +413,8 @@ void updateReadings() {
   rawAdc    = readADC(ADC0, 20);                                               // read bus voltage from internal adcd
   rawDouble = raw2volts(rawAdc, vBusDiv);                                      // convert raw value into volts
 
+  fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);              // commit converted value to buffer
+  fram.addRaw   (PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);                 // commit raw value to buffer
   if ((rawDouble<4.70) || (rawDouble>5.10))
     STATUS1 |= 1<<PM_STATUS1_RANGEVBUS;                                        // set low bus voltage status bit
   else 
@@ -412,21 +426,30 @@ void updateReadings() {
   rawDouble = (aVcc / (double)16777216) * (double)rawAdc;                      // get current, divide millivolts by millivolts per amp
   rawDouble = rawDouble / mvA;                                                 // convert millivolts into amps
 
+  Serial1.printf("extAdc ch1 raw %i float %f\r\n", rawAdc, rawDouble);
   if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                    // Current sense is out of range, malfunction
   else 
   {
     fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                  // store data
     fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);            // store amps value in memory
+
+    float ampsHi  = fram.getDataDouble(PM_REGISTER_READLOADAMPSHI);
+    int32_t rawHi = fram.getRaw       (PM_REGISTER_READLOADAMPSHI);
+
+    if (rawDouble>ampsHi || rawHi == 0) {                                      // record highest draw if applicable
+      fram.addDouble(PM_REGISTER_READLOADAMPSHI, timeStamp, rawDouble);
+      fram.addRaw   (PM_REGISTER_READLOADAMPSHI, timeStamp, rawAdc);
+    }
     if (rawDouble>iLoadHigh - 1.0) hiIwarn = true;                             // Current sense near high limit
     if (rawDouble>iLoadHigh) 
     {
-                                   hiIalarm_cnt++;                             // Current sense beyond high limit
-                                   hiIalarm = true;                            // set alarm flag
+      hiIalarm_cnt++;                             // Current sense beyond high limit
+      hiIalarm = true;                            // set alarm flag
     }               
     else
     {
-                                   hiIalarm_cnt=0;                             // reset alarm counter
-                                   hiIalarm = false;                           // clear alarm flag
+      hiIalarm_cnt=0;                             // reset alarm counter
+      hiIalarm = false;                           // clear alarm flag
     }
   }
 
@@ -446,14 +469,33 @@ void updateReadings() {
 
   extAdc.selectCh2();                                                             // vpack divider on adc ch2
   rawAdc    = extAdc.readADC();                                                   // get raw 24-bit value
+
   rawDouble = (aVcc / (double)16777216) * (double)rawAdc;                         // convert raw reading into millivolts
   rawDouble = rawDouble / vPackDiv;                                               // scale number based on resistor divider ratio
+
+  Serial1.printf("extAdc ch2 raw %i float %f\r\n", rawAdc, rawDouble);
 
   if (rawDouble<1.0 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
   else
   { 
     fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                    // store data
     fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);              // store data
+
+    // update low volt record
+    float loVolts = fram.getDataDouble(PM_REGISTER_READLOWVOLTS);
+    framRaw       = fram.getRaw       (PM_REGISTER_READLOWVOLTS);
+    if (rawDouble<loVolts || framRaw==0) {
+      fram.addDouble(PM_REGISTER_READLOWVOLTS, timeStamp, rawDouble);
+      fram.addRaw   (PM_REGISTER_READLOWVOLTS, timeStamp, rawAdc);
+    } 
+
+    // update high volt record
+    float hiVolts = fram.getDataDouble(PM_REGISTER_READHIVOLTS);
+    framRaw       = fram.getRaw       (PM_REGISTER_READHIVOLTS);
+    if (rawDouble>hiVolts || framRaw==0) {
+      fram.addDouble(PM_REGISTER_READHIVOLTS, timeStamp, rawDouble);
+      fram.addRaw   (PM_REGISTER_READHIVOLTS, timeStamp, rawAdc);
+    } 
 
     if (rawDouble<vPackLow)            loValarm_cnt++;                            // increase count for low voltage alarm
     else if (rawDouble>vPackHigh)      hiValarm_cnt++;                            // increase count for high voltage alarm
@@ -544,16 +586,16 @@ void receiveEvent(size_t howMany) {
 
   if (howMany>0) 
   {
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host writing reg 0x%X byte count %u", _isr_cmdAddr, howMany);
-    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    dbgMsgCnt++;                                                        // increment debug message counter
+    // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host writing reg 0x%X byte count %u", _isr_cmdAddr, howMany);
+    // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    // dbgMsgCnt++;                                                        // increment debug message counter
   }
   else
   {
     i2cRegAddr = _isr_cmdAddr;
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", i2cRegAddr);
-    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    dbgMsgCnt++;                                                        // increment debug message counter
+    // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", i2cRegAddr);
+    // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    // dbgMsgCnt++;                                                        // increment debug message counter
   }
 
   while (Wire.available()) {
@@ -664,8 +706,8 @@ void receiveEvent(size_t howMany) {
     case 0x39: // read instant pack voltage, double (read only)
     case 0x3A: // read lowest voltage memory, double (read only)
     case 0x3B: // read highest voltage memory, double (read only)
-    case 0x3C: // read lowest voltage timestamp, double (read only)  DEPRECATED
-    case 0x3D: // read highest voltage timestamp, double (read only) DEPRECATED
+    case 0x3C: // read high load amperage
+    // case 0x3D: // read highest voltage timestamp, double (read only) DEPRECATED
       // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
       // _isr_HostDouble = getDouble(fram.getByteArray(_isr_cmdAddr));
       // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
@@ -816,9 +858,9 @@ void receiveEvent(size_t howMany) {
 // this function is registered as an event, see setup()
 void requestEvent() {   
   reqEvnt = true;   
-  sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX register 0x%x ", i2cRegAddr);
-  dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-  dbgMsgCnt++;                                                        // increment debug message counter
+  // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX register 0x%x ", i2cRegAddr);
+  // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+  // dbgMsgCnt++;                                                        // increment debug message counter
 
   // if (_I2C_DATA_RDY) {
   //   _I2C_DATA_RDY = false;                              // set flag that we had this interaction
@@ -868,9 +910,9 @@ void scanI2C() {
     } 
   }
   
-  if (nDevices == 0)
+  if (nDevices < 2)
     {
-      Serial1.println("No I2C devices found");
+      Serial1.println("Not all I2C devices found, rebooting");
       delay(5000);
       resetFunc();
     }

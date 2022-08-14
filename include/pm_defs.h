@@ -26,8 +26,8 @@
 #define PM_REGISTER_READPACKVOLTS       0x39 // read pack voltage right now
 #define PM_REGISTER_READLOWVOLTS        0x3A // read low pack voltage record
 #define PM_REGISTER_READHIVOLTS         0x3B // read high pack voltage record
-// #define PM_REGISTER_READLOWVOLTSTIME    0x3C // read low pack voltage record timestamp 
-// #define PM_REGISTER_READHIVOLTSTIME     0x3D // read high pack voltage record timestamp
+#define PM_REGISTER_READLOADAMPSHI      0x3C // read peak load amperage
+// #define PM_REGISTER_READLOADAMPSLO      0x3D // read high pack voltage record timestamp
 #define PM_REGISTER_CLEARVOLTMEM        0x3E // clear voltage record memory
 #define PM_REGISTER_CLEARTEMPS          0x40 // clear temperature record memory
 #define PM_REGISTER_READDEGCT0          0x41 // read t0 degrees c
