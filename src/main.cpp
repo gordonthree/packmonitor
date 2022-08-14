@@ -298,16 +298,18 @@ void updateReadings() {
     if (rawDouble>hiTemp - 2.0 || rawDouble<loTemp + 2.0) tempWarn = true;     // set a warning if temp is within two degrees high or low
     
     // update in-memory buffer
-    tempReadings[0].sensorAddr = PM_REGISTER_READDEGCT0;
+    tempReadings[0].sensorAddr  = PM_REGISTER_READDEGCT0;
     tempReadings[0].tempReading = rawDouble;
 
     // update low temp record
+    tempReadings[0].lowReading = fram.getDataDouble(PM_REGISTER_READT0LOW);
     if (rawDouble<tempReadings[0].lowReading) {
       tempReadings[0].lowReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT0LOW, timeStamp, tempReadings[0].lowReading);
     } 
 
     // update high temp record
+    tempReadings[0].highReading = fram.getDataDouble(PM_REGISTER_READT0HIGH);
     if (rawDouble>tempReadings[0].highReading) {
       tempReadings[0].highReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT0HIGH, timeStamp, tempReadings[0].highReading);
@@ -332,15 +334,17 @@ void updateReadings() {
     tempReadings[1].tempReading = rawDouble;
 
     // update low temp record
+    tempReadings[1].lowReading = fram.getDataDouble(PM_REGISTER_READT1LOW);
     if (rawDouble<tempReadings[1].lowReading) {
       tempReadings[1].lowReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT1LOW, timeStamp, tempReadings[1].lowReading);
     } 
 
     // update high temp record
+    tempReadings[1].highReading = fram.getDataDouble(PM_REGISTER_READT1HIGH);
     if (rawDouble>tempReadings[1].highReading) {
       tempReadings[1].highReading = rawDouble;
-      fram.addDouble(PM_REGISTER_READT1HIGH, timeStamp, tempReadings[1].highReading);
+      fram.addDouble(PM_REGISTER_READT0HIGH, timeStamp, tempReadings[1].highReading);
     }
 
   }
@@ -363,12 +367,14 @@ void updateReadings() {
     tempReadings[2].tempReading = rawDouble;
 
     // update low temp record
+    tempReadings[2].lowReading = fram.getDataDouble(PM_REGISTER_READT2LOW);
     if (rawDouble<tempReadings[2].lowReading) {
       tempReadings[2].lowReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT2LOW, timeStamp, tempReadings[2].lowReading);
     } 
 
     // update high temp record
+    tempReadings[2].highReading = fram.getDataDouble(PM_REGISTER_READT2HIGH);
     if (rawDouble>tempReadings[2].highReading) {
       tempReadings[2].highReading = rawDouble;
       fram.addDouble(PM_REGISTER_READT2HIGH, timeStamp, tempReadings[2].highReading);
