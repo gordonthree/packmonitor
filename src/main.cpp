@@ -213,7 +213,7 @@ void loop() {
     reqEvnt  = false;             // reset flag
 
     // update current time register
-    if (timeSet()) fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
+    if (timeSet) fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
 
     // update uptime if clock has been set
     if (firsttimeSync!=0) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
@@ -380,13 +380,15 @@ void updateReadings() {
 
   if (tempError) {
     STATUS0 |= 1<<PM_STATUS0_RANGETSNS;                                        // set flag in status0 register
-    Serial1.printf("%lu: ERROR: Temperature sensor out of range\n", timeStamp);
+    Serial1.printf("%lu: ERROR: Temperature sensor out of range", timeStamp);
+    Serial1.println("");
     tempError = false;} 
   else STATUS0 |= 1<<PM_STATUS0_RANGETSNS;                                     // set flag in status0 register
 
   if (tempWarn) {
     STATUS0 |= 1<<PM_STATUS0_WARNTEMP;                                         // set flag in status0 register
     Serial1.printf("%lu: WARN: Temperature sensor near threshold\n", timeStamp);
+    Serial1.println("");
     tempWarn = false;}
   else STATUS0 |= 0<<PM_STATUS0_WARNTEMP;                                      // set flag in status0 register
 
@@ -424,12 +426,14 @@ void updateReadings() {
 
   if (hiIwarn) {
     Serial1.printf("%lu WARN: Load current near threshold (%.2f)\n", timeStamp, rawDouble);
+    Serial1.println("");
     STATUS0 |= 1<<PM_STATUS0_WARNCURRENT;
     hiIwarn = false; // clear warning
   }
 
   if (loadIerror) {
     Serial1.printf("%lu: ERROR: Load current sensor out of range (%.2f)\n", timeStamp, rawDouble);
+    Serial1.println("");
     STATUS0 |= 1<<PM_STATUS0_RANGEISNS;
     loadIerror = false; // clear error
   }
@@ -457,12 +461,14 @@ void updateReadings() {
 
   if (packVerror) {
     Serial1.printf("%lu: ERROR: Pack voltage sensor out of range. (%.3f)\n", timeStamp, rawDouble);
+    Serial1.println("");
     STATUS0 |= 1<<PM_STATUS0_RANGEVSNS;
     packVerror = false; // clear error
   }
 
   if (packVwarn) {
     Serial1.printf("%lu: WARN: Pack voltage near threshold. (%.3f)\n", timeStamp, rawDouble);
+    Serial1.println("");
     STATUS0 |= 1<<PM_STATUS0_WARNVOLTAGE;
     packVwarn = false; // clear warning
   }
@@ -471,27 +477,32 @@ void updateReadings() {
   if (!alarmDisable) {                                                            // user can disable alarms
     if (hiIalarm_cnt>iAlarm_threshold) {
       Serial1.printf("%lu: ALARM: Current exceeding limit.\n", timeStamp);
+      Serial1.println("");
       hiIalarm_cnt = iAlarm_threshold; // reset alarm
     }
 
     if (hiTalarm_cnt>tAlarm_threshold ) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature exceeding upper limit.\n", timeStamp);
+      Serial1.println("");
       hiTalarm_cnt = tAlarm_threshold;
 
     }
 
     if (loTalarm_cnt>tAlarm_threshold) {        // take action on temperature alarm
       Serial1.printf("%lu: ALARM: Pack temperature exceeding lower limit.\n", timeStamp);
+      Serial1.println("");
       loTalarm_cnt = tAlarm_threshold;
     }
 
     if (loValarm_cnt>vAlarm_threshold) { // handle low pack voltage alarm condition
       Serial1.printf("%lu: ALARM: Pack voltage is too low.\n", timeStamp);
+      Serial1.println("");
       loValarm_cnt = vAlarm_threshold; // reset alarm
     }
 
     if (hiValarm_cnt>vAlarm_threshold) { // handle high pack voltage alarm condition
       Serial1.printf("%u: ALARM: Pack voltage is too high.\n", timeStamp);
+      Serial1.println("");
       hiValarm_cnt = vAlarm_threshold; // reset alarm
     }
   }
@@ -533,7 +544,8 @@ void receiveEvent(size_t howMany) {
   }
   else
   {
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", _isr_cmdAddr);
+    i2cRegAddr = _isr_cmdAddr;
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", i2cRegAddr);
     dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
     dbgMsgCnt++;                                                        // increment debug message counter
   }
@@ -666,8 +678,6 @@ void receiveEvent(size_t howMany) {
       break;
 
     case 0x40: // clear temperature memories, (write only)
-      fram.addDouble(0x42, _isr_timeStamp, 0.0);    // store a double in memory buffer
-      fram.addDouble(0x43, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(0x44, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(0x45, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(0x46, _isr_timeStamp, 0.0);    // store a double in memory buffer
@@ -800,9 +810,9 @@ void receiveEvent(size_t howMany) {
 // this function is registered as an event, see setup()
 void requestEvent() {   
   reqEvnt = true;   
-  // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX event; i2c_data_rdy=0x%X and %u data bytes", _I2C_DATA_RDY, txData.dataLen);
-  // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-  // dbgMsgCnt++;                                                        // increment debug message counter
+  sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX register 0x%x ", i2cRegAddr);
+  dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+  dbgMsgCnt++;                                                        // increment debug message counter
 
   // if (_I2C_DATA_RDY) {
   //   _I2C_DATA_RDY = false;                              // set flag that we had this interaction
