@@ -3,8 +3,9 @@
 #include <time.h>
 #include <TimeLib.h>
 #include <I2C_eeprom.h>
+#include <SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h>
 
-#include "NAU7802.h"
+// #include "NAU7802.h"
 #include "pm_defs.h"
 #include "pm_pins.h"
 #include "pm_struct.h"
@@ -32,7 +33,9 @@ volatile uint8_t     dbgMsgCnt  = 0;                                // counter f
 volatile I2C_TX_DATA txData;
 volatile uint8_t     i2cRegAddr = 0;                                // keep track of the command address for multi-register reads
 
-NAU7802     extAdc;                                                 // NAU7802 ADC device
+
+NAU7802 extAdc;
+// NAU7802     extAdc;                                                 // NAU7802 ADC device
 FRAMSTORAGE fram;                                                   // access the array for storing eeprom contents
 I2C_eeprom  ee_fram(0x50, I2C_DEVICESIZE_24LC64);                   // setup the eeprom here in the global scope
 
@@ -135,12 +138,19 @@ void setup() {
 
   scanI2C();  // scan bus?!
 
-  Wire.onRequest(&requestEvent); // register requestEvent interrupt handler
-  Wire.onReceive(&receiveEvent); // register receiveEvent interrupt handler
+  
+  // extAdc.begin(0x2A, Wire);      // pass through TWI to adc library
+  // extAdc.avcc4V5();              // set voltage regulator and analog reference to internal at 4.5v
+  // extAdc.rate010sps();           // set conversion rate to 320sps
 
-  extAdc.begin(0x2A, Wire);      // pass through TWI to adc library
-  extAdc.avcc4V5();              // set voltage regulator and analog reference to internal at 4.5v
-  extAdc.rate010sps();           // set conversion rate to 320sps
+  Serial1.print("Starting up external ADC...");
+  extAdc.begin(Wire);
+  extAdc.setGain(NAU7802_GAIN_1);       // gain set to 1
+  extAdc.setSampleRate(NAU7802_SPS_10); // 10 samples per second
+  extAdc.setLDO(NAU7802_LDO_4V5);       // LDO to 4.5v
+
+  extAdc.calibrateAFE();                // Preform internal calibration
+  Serial1.println("complete!");
 
   Serial1.print("Loading data from FRAM... ");
 
@@ -162,6 +172,11 @@ void setup() {
   setTime(fram.getDataUInt(PM_REGISTER_TIMESYNC));             // set time based on last-sync time from fram
   
   printConfig();
+
+  // setup complete, install i2c ISRs
+  Wire.onRequest(&requestEvent); // register requestEvent interrupt handler
+  Wire.onReceive(&receiveEvent); // register receiveEvent interrupt handler
+
 } // end setup()
 
 uint16_t      i                 = 0;
@@ -420,8 +435,11 @@ void updateReadings() {
   else 
     STATUS1 |= 0<<PM_STATUS1_RANGEVBUS;                                        // clear low bus voltage status bit
 
-  extAdc.selectCh1();                                                          // current sensor on adc ch1
-  rawAdc    = extAdc.readADC();                                                // get raw 24-bit value
+  // extAdc.selectCh1();                                                          // current sensor on adc ch1
+  // rawAdc    = extAdc.readADC();                                                // get raw 24-bit value
+  extAdc.setChannel(NAU7802_CHANNEL_1);
+  while (!extAdc.available()) delay(1);
+  rawAdc = extAdc.getReading();
   //  readMV() = (_avcc/(float)16777216)*(float)readADC();
   rawDouble = (aVcc / (double)16777216) * (double)rawAdc;                      // get current, divide millivolts by millivolts per amp
   rawDouble = rawDouble / mvA;                                                 // convert millivolts into amps
@@ -467,8 +485,11 @@ void updateReadings() {
     loadIerror = false; // clear error
   }
 
-  extAdc.selectCh2();                                                             // vpack divider on adc ch2
-  rawAdc    = extAdc.readADC();                                                   // get raw 24-bit value
+  // extAdc.selectCh2();                                                             // vpack divider on adc ch2
+  // rawAdc    = extAdc.readADC();                                                   // get raw 24-bit value
+  extAdc.setChannel(NAU7802_CHANNEL_2);
+  while (!extAdc.available()) delay(1);
+  rawAdc = extAdc.getReading();
 
   rawDouble = (aVcc / (double)16777216) * (double)rawAdc;                         // convert raw reading into millivolts
   rawDouble = rawDouble / vPackDiv;                                               // scale number based on resistor divider ratio
