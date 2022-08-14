@@ -631,23 +631,23 @@ void receiveEvent(size_t howMany) {
       fram.addDouble(PM_REGISTER_READCOLCNTR, _isr_timeStamp, 0.0);    // store a double in memory buffer
       break;
 
-    case 0x32: // clear total amps counter (cmds 33, 34) (write only)
+    case 0x31: // clear total amps counter (cmds 33, 34) (write only)
       fram.addDouble(PM_REGISTER_TOTALAMPSIN, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(PM_REGISTER_TOTALAMPSOUT, _isr_timeStamp, 0.0);    // store a double in memory buffer
       break;
 
-    case 0x31: // read coulomb counter, double (read only)
+    case 0x32: // read coulomb counter, double (read only)
     case 0x33: // read instant amps, double (read only)
     case 0x34: // read total amps in counter, double (read only)
     case 0x35: // read total amps out counter, double (read only)
     case 0x36: // read lifetime amps in, double (read only)
     case 0x37: // read lifetime amps out, double (read only)
+    case 0x38: // read instant bus voltage, double (read only)
     case 0x39: // read instant pack voltage, double (read only)
     case 0x3A: // read lowest voltage memory, double (read only)
-    case 0x3B: // read lowest voltage timestamp, double (read only)
-    case 0x3C: // read highest voltage memory, double (read only)
-    case 0x3D: // read highest voltage timestamp, double (read only)
-    case 0x3E: // read instant bus voltage, double (read only)
+    case 0x3B: // read highest voltage memory, double (read only)
+    case 0x3C: // read lowest voltage timestamp, double (read only)  DEPRECATED
+    case 0x3D: // read highest voltage timestamp, double (read only) DEPRECATED
       // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
       // _isr_HostDouble = getDouble(fram.getByteArray(_isr_cmdAddr));
       // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "TX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
@@ -658,7 +658,7 @@ void receiveEvent(size_t howMany) {
       // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       break;
 
-    case 0x38: // clear voltage memory, (write only)
+    case 0x3E: // clear voltage memory, (write only)
       fram.addDouble(0x3A, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(0x3B, _isr_timeStamp, 0.0);    // store a double in memory buffer
       fram.addDouble(0x3C, _isr_timeStamp, 0.0);    // store a double in memory buffer
@@ -693,12 +693,12 @@ void receiveEvent(size_t howMany) {
       // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
       // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
       // break;
-    case 0x4A: // read t0 low timestamp, unsigned long (read only)
-    case 0x4B: // read t1 low timestamp, unsigned long (read only)
-    case 0x4C: // read t2 low timestamp, unsigned long (read only)
-    case 0x4D: // read t0 high timestamp, unsigned long (read only)
-    case 0x4E: // read t1 high timestamp, unsigned long (read only)
-    case 0x4F: // read t1 high timestamp, unsigned long (read only)
+    case 0x4A: // read t0 low timestamp, unsigned long (read only)    DEPRECATED
+    case 0x4B: // read t1 low timestamp, unsigned long (read only)    DEPRECATED
+    case 0x4C: // read t2 low timestamp, unsigned long (read only)    DEPRECATED
+    case 0x4D: // read t0 high timestamp, unsigned long (read only)   DEPRECATED
+    case 0x4E: // read t1 high timestamp, unsigned long (read only)   DEPRECATED
+    case 0x4F: // read t1 high timestamp, unsigned long (read only)   DEPRECATED
       // ulongbuffer.longNumber = fram.getDataUInt(_isr_cmdAddr);
       // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
       // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
@@ -720,7 +720,7 @@ void receiveEvent(size_t howMany) {
     case 0x53: // read total over-volt discon, uint (read only)
     case 0x54: // read total under-temp discon, uint (read only)
     case 0x55: // read total over-temp discon, uint (read only)
-    case 0x56: // read last discon timestamp, ulong (read only)
+    case 0x56: // read last discon timestamp, ulong (read only) DEPRECATED
       // memcpy(txData.cmdData, fram.getByteArray(_isr_cmdAddr), _isr_dataSize);  // grab data from memory buffer and copy to tx buffer
       // txData.dataLen = 4;                                                      // tell requestEvent to send this many bytes
       // _I2C_DATA_RDY = true;                                                    // let loop know data is ready
