@@ -47,8 +47,9 @@ class FRAMSTORAGE
 
     union doubleArray
     {
-    double doubleVal;
-    uint8_t byteArray[4];
+      float doubleVal;
+      #endif
+      uint8_t byteArray[4];
     } dbuffer;
   
     EERECORD fram_buffer[ee_buffer_size];
@@ -70,7 +71,7 @@ class FRAMSTORAGE
     void      addArrayData(uint8_t dataAddr, uint8_t * byteArray);       // update array with a raw byte array (from eeprom really)
     uint8_t * getArrayData(uint8_t dataAddr);                            // return the entire record byte array
 
-    void addDouble   (uint8_t dataAddr, uint32_t ts, double doubleVal);  // update array with a double from userland
+    void addDouble   (uint8_t dataAddr, uint32_t ts, float doubleVal);  // update array with a double from userland
     void addUInt     (uint8_t dataAddr, uint32_t ts, uint32_t uintVal);  // update array with a unsigned int from userland
     void addSInt     (uint8_t dataAddr, uint32_t ts, int32_t intVal);    // update array with a signed integer from userland
     void addByte     (uint8_t dataAddr, uint32_t ts, uint8_t byteVal);   // update array with a single byte from userland
@@ -79,7 +80,7 @@ class FRAMSTORAGE
     uint32_t  getTimeStamp  (uint8_t dataAddr);                          // get the timestamp for the record
     int32_t   getRaw        (uint8_t dataAddr);                          // get raw adc data
     uint32_t  getDataUInt   (uint8_t dataAddr);                          // transform byte array into usigned int
-    double    getDataDouble (uint8_t dataAddr);                          // transform byte array into double precision (float)
+    float     getDataDouble (uint8_t dataAddr);                          // transform byte array into double precision (float)
     int32_t   getDataSInt   (uint8_t dataAddr);                          // transform byte array into signed int
     uint8_t   getDataByte   (uint8_t dataAddr);                          // read one byte from byte array
     uint8_t * getByteArray  (uint8_t dataAddr);                          // return the entire data byte array

@@ -29,7 +29,7 @@ uint8_t * FRAMSTORAGE::getArrayData(uint8_t dataAddr)                   // retur
   return dataArray;
 }
 
-void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, double doubleVal) /* update array with a double from userland */
+void FRAMSTORAGE::addDouble(uint8_t dataAddr, uint32_t ts, float doubleVal) /* update array with a double from userland */
 { // memcpy(dst, src, len)
   dbuffer.doubleVal = doubleVal;
 
@@ -86,7 +86,7 @@ int32_t FRAMSTORAGE::getDataSInt(uint8_t dataAddr)                  // convert b
   return lbuffer.longNumber;
 }
 
-double FRAMSTORAGE::getDataDouble (uint8_t dataAddr)                 // convert byte array to double precision
+float FRAMSTORAGE::getDataDouble(uint8_t dataAddr)                 // convert byte array to double precision
 { // memcpy(dst, src, len)
   memcpy(dbuffer.byteArray, fram_buffer[dataAddr].data.array, 4);
   return dbuffer.doubleVal;
