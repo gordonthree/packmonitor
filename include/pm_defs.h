@@ -5,7 +5,7 @@
 #define PM_REGISTER_LOWTEMPLIMIT        0x23 // read / write low temperature cut off register
 #define PM_REGISTER_HIGHVOLTLIMIT       0x24 // read / write high voltage cut off register
 #define PM_REGISTER_LOWVOLTLIMIT        0x25 // read / writte low voltage cut off register
-#define PM_REGISTER_CONFIG0BYTE         0x26 // read / write concig0 register
+#define PM_REGISTER_CONFIG0BYTE         0x26 // read / write config0 register
 #define PM_REGISTER_CONFIG1BYTE         0x27 // read / write config1 register
 #define PM_REGISTER_CONFIG2BYTE         0x28 // read / write config2 register
 #define PM_REGISTER_CURRENTMVA          0x29 // read / write current sensor mva value in millivolts
@@ -77,6 +77,10 @@
 #define PM_STATUS0_RANGEVSNS            0x00 // set when voltage sensor value is out of range
 
 #define PM_STATUS1_RANGEVBUS            0x00 // set when bus voltage is out of normal range
+#define PM_STATUS1_ALARMVPACK           0x01 // set when pack voltage alarm is present
+#define PM_STATUS1_ALARMOVRCUR          0x02 // set when over current alarm is present
+#define PM_STATUS1_ALARMLOWT            0x03 // set when pack low-temp alarm is present
+#define PM_STATUS1_ALARMHIGHT           0x04 // set when pack high-temp alarm is present
 
 /**
 * The NTC table has 1024 interpolation points.
