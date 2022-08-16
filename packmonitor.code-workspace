@@ -13,7 +13,9 @@
 			"unordered_map": "cpp",
 			"vector": "cpp",
 			"string_view": "cpp",
-			"initializer_list": "cpp"
+			"initializer_list": "cpp",
+			"wiring_private.h": "c",
+			"pins_arduino.h": "c"
 		}
 	}
 }
