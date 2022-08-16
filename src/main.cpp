@@ -327,7 +327,7 @@ void updateReadings() {
   uint32_t timeStamp   = now();
   uint32_t rawUlong    = 0;
   float    sysVcc      = 5.09;
-  float    loT, hiT;
+  float    loT, hiT, vBushi, vBuslo;
 
   // ********** T0
   rawAdc               = readADC(ADC0, 20);                                    // update in-memory value for internal adc1
@@ -443,12 +443,28 @@ void updateReadings() {
   rawAdc    = readADC(ADC5, 20);                                               // read bus voltage from internal adcd
   rawDouble = raw2volts(rawAdc, sysVcc, vBusDiv);                                      // convert raw value into volts
 
-  fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);              // commit converted value to buffer
-  fram.addRaw   (PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);                 // commit raw value to buffer
-  if ((rawDouble<4.70) || (rawDouble>5.10))
+  if ((rawDouble<4.20) || (rawDouble>5.30))
     STATUS1 |= 1<<PM_STATUS1_RANGEVBUS;                                        // set low bus voltage status bit
   else 
+  { // bus voltage in normal range
     STATUS1 |= 0<<PM_STATUS1_RANGEVBUS;                                        // clear low bus voltage status bit
+    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);            // commit converted value to buffer
+    fram.addRaw   (PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);               // commit raw value to buffer
+    vBushi  = fram.getDataDouble(PM_REGISTER_READBUSVOLTSHI);                  // read high bus voltage from memory
+    framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSHI);                  // read raw high value from memory
+    if (rawDouble > vBushi || framRaw == 0) 
+    { // store high value
+      fram.addDouble(PM_REGISTER_READBUSVOLTSHI, timeStamp, rawDouble);            // commit converted value to buffer
+      fram.addRaw   (PM_REGISTER_READBUSVOLTSHI, timeStamp, rawAdc);               // commit raw value to buffer      
+    }
+    vBuslo  = fram.getDataDouble(PM_REGISTER_READBUSVOLTSLO);                  // read low bus volts from memory
+    framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSHI);                  // read raw high value from memory
+    if (rawDouble < vBuslo || framRaw == 0)
+    {
+      fram.addDouble(PM_REGISTER_READBUSVOLTSLO, timeStamp, rawDouble);            // commit converted value to buffer
+      fram.addRaw   (PM_REGISTER_READBUSVOLTSLO, timeStamp, rawAdc);               // commit raw value to buffer      
+    }
+  }
 
   // ********** AMPS
   rawAdc    = readADC(ADC3, 20);
@@ -504,7 +520,7 @@ void updateReadings() {
   if (rawDouble<5.5 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
   else
   { 
-    fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                    // store data
+    fram.addRaw   (PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                    // store data
     fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);              // store data
 
     // update low volt record
