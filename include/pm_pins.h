@@ -8,10 +8,12 @@
 #define LED4 PIN_PA7 // 
 
 // left hand side of the chip
-#define ADC0 PIN_PD1 // PD1
-#define ADC1 PIN_PD2 // PD2
-#define ADC2 PIN_PD3 // PD3
-#define ADC3 PIN_PD4 // PD4
+#define ADC0 PIN_PD0 // PD0
+#define ADC1 PIN_PD1 // PD1
+#define ADC2 PIN_PD2 // PD2
+#define ADC3 PIN_PD3 // PD3
+#define ADC4 PIN_PD4 // PD4
+#define ADC5 PIN_PD5 // PD4
 
 // Stand alone slave-only pins
 #define SCL  PIN_PA3 // Slave TWI0
@@ -33,10 +35,12 @@
 #define LED4 PIN_PA7
 
 // bottom right of processor
-#define ADC0 PIN_PD3
-#define ADC1 PIN_PD4
-#define ADC2 PIN_PD5
-#define ADC3 PIN_PD6
+#define ADC0 PIN_PD1 // PD0
+#define ADC1 PIN_PD2 // PD1
+#define ADC2 PIN_PD3 // PD2
+#define ADC3 PIN_PD4 // PD3
+#define ADC4 PIN_PD5 // PD4
+#define ADC5 PIN_PD6 // PD4
 
 // Stand alone slave-only pins
 #define SCL  PIN_PA3 // Slave TWI0
