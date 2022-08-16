@@ -337,7 +337,7 @@ void updateReadings() {
   float    rawDouble   = 0.0;
   uint32_t timeStamp   = now();
   uint32_t rawUlong    = 0;
-  float    sysVcc      = 4.096;
+  float    sysVcc      = 5.09;
   float    loT, hiT;
 
   // ********** T0
@@ -512,7 +512,7 @@ void updateReadings() {
 
   // Serial1.printf("ADC4 int %i ulong %u float %.3f\r\n", rawAdc, rawUlong, rawDouble);
 
-  if (rawDouble<1.0 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
+  if (rawDouble<5.5 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
   else
   { 
     fram.addRaw(PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                    // store data
