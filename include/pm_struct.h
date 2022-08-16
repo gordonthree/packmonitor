@@ -58,25 +58,23 @@ union doubleArray {
   uint8_t byteArray[4];
 };
 
-float raw2amps(uint32_t rawVal)
+float raw2amps(int32_t rawVal, float vcc, float mvA)
 {
-    float mvPa    = 0.136;  // 0.136v or 136mV per amp
+    // float mvPa    = 0.136;  // 0.136v or 136mV per amp
     float Amps    = 0.0;
     float Volts   = 0.0;
-    float sysVcc  = 5.09;
 
-    Volts = (float)(rawVal * (sysVcc / 1024.0)) - (sysVcc / 2);
-    Amps =  (float)Volts / mvPa;
+    Volts = (float)(rawVal * (vcc / 1024.0)) - (vcc / 2);
+    Amps =  (float)Volts / mvA;
 
     return Amps;
 }
 
-float raw2volts(uint32_t rawVal, float scale)
+float raw2volts(int32_t rawVal, float vcc, float scale)
 {
     float Volts   = 0.0;
-    float sysVcc  = 5.09;
   
-    Volts = (float)(rawVal * (sysVcc / 1024.0)) / scale;
+    Volts = (float)(rawVal * (vcc / 1024.0)) / scale;
     //Amps =  (float)Volts / acsmvA;
     //adcDataBuffer[0].Amps  = Amps;
     return Volts;
@@ -96,6 +94,8 @@ float raw2volts(uint32_t rawVal, float scale)
 float raw2temp(unsigned int adc_value){
  
   /* Read values directly from the table. */
-  return (double) NTC_table[ adc_value ] / 100.0;
+  return (float) NTC_table[ adc_value ] / 100.0;
 };
+
+
 
