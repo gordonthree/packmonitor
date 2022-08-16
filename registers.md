@@ -61,11 +61,15 @@
 
 #### 0x27 R/W config1 bits, return byte
 
-* Bit 0 to 7: (reserved)
+* Bit 7: ADC voltage reference always on, 1 = yes (default)
+* Bit 6: Automatically measure bus voltage for ADC calibration, 1 = yes (default)
+  * Register VBUSVOLTS 0x2F is becomes read-only if this bit is set, writes to VBUSVOLTS will be overwritten
+* Bit 0 to 2: ADC internal reference voltage, see AVR DA series datasheet
 
 #### 0x28 R/W config2 bits, return byte
 
-* Bit 0 to 7: (reserved)
+* Bit 0 to 3: Fram save interval:
+  * Delay in seconds for options from 0 to 15 are: 10, 20, 30, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480, 600, 720, 900
 
 #### 0x29 R/W current sensor mv/A value, double / float
 
@@ -108,9 +112,9 @@
 
 * Read or write the scaling factor / divisor for the thermistor circuits
   
-#### 0x2F
+#### 0x2F R/W VBUSVOLTS
 
-* (reserved)
+* Read or write the bus voltage for ADC calibration, float
 
 #### 0x30 W/O Clear coulomb counter, no data
 

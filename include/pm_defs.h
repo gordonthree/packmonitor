@@ -69,6 +69,11 @@
 #define PM_CONFIG1_REFSEL1              0x01 // three bits to select internal voltage reference level
 #define PM_CONFIG1_REFSEL0              0x00 // three bits to select internal voltage reference level
 
+#define PM_CONFIG2_FRAMSAVE3            0x02 // four bits to set save to fram interval bit3
+#define PM_CONFIG2_FRAMSAVE2            0x02 // four bits to set save to fram interval bit2
+#define PM_CONFIG2_FRAMSAVE1            0x01 // four bits to set save to fram interval bit1
+#define PM_CONFIG2_FRAMSAVE0            0x00 // four bits to set save to fram interval bit0
+
 #define PM_STATUS0_CONFIGSET            0x07 // set when config0 contains vaild configuration
 #define PM_STATUS0_TIMESET              0x06 // set when system clock has been set
 #define PM_STATUS0_WARNTEMP             0x05 // set when temperature within 3 degrees of either limit
