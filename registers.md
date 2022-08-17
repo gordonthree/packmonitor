@@ -105,8 +105,8 @@
 * Bit 4: (reserved)
 * Bit 3: (reserved)
 * Bit 2: (reserved)
-* Bit 1: V-bus voltage high
-* Bit 0: V-bus voltage low
+* Bit 1: (reserved)
+* Bit 0: V-bus voltage out of range
   
 #### 0x2E R/W scaling number for thermistor divider circuit
 
@@ -120,11 +120,11 @@
 
 * Reset coulomb counter
 
-#### 0x31 R/O Coulomb counter. double / float
+#### 0x31 W/O Clear total amps counter, except lifetime
+
+#### 0x32 R/O Coulomb counter. double / float
 
 * Shows surplus amps in, or deficit amps out
-
-#### 0x32 W/O Clear total amps counter, except lifetime
 
 #### 0x33 Read load amperage, double / float
 
@@ -138,33 +138,25 @@
 
 #### 0x37 R/O lifetime amps out, double / float
 
-#### 0x38 W/O Clear voltage memory, no data
+#### 0x38 R/O load amps peak, double / float
 
-#### 0x39 R/O pack voltage, double / float
-
-* Returns the current pack voltage in volts
-
-#### 0x3A R/O lowest voltage memory, double / float
-
-* Lowest voltage seen since last clear in volts
-
-#### 0x3B R/O lowest voltage timestamp, unsigned long
-
-* Timestamp for when the lowest voltage was recorded
-
-#### 0x3C R/O highest voltage memory, double / float
-
-* Highest voltage seen since last clear in volts
-
-#### 0x3D R/O highest voltage timestamp, unsigned long
-
-* Timestamp for when the highest voltage was recorded
-
-#### 0x3E R/O bus voltage, double / float
+#### 0x39 R/O bus voltage, double / float
 
 * Returns the current bus voltage in volts
 
-#### 0x3F
+#### 0x3A R/O pack voltage, double / float
+
+#### 0x3B R/O Lowest pack voltage, double / float
+
+#### 0x3C R/O highest pack voltage, double / float
+
+* Highest voltage seen since last clear in volts
+
+#### 0x3D R/O Bus voltage lowest, double / float
+
+#### 0x3E R/O bus voltage highest, double / float
+
+#### 0x3F W/O Clear voltage memory, no data
 
 * (reserved)
 
@@ -188,35 +180,21 @@
 
 #### 0x49 R/O Read T2 highest, double / float
 
-#### 0x4A R/O T0 lowest memory timestamp, unsigned long
-
-#### 0x4B R/O T1 lowest memory timestamp, unsigned long
-
-#### 0x4C R/O T2 lowest memory timestamp, unsigned long
-
-#### 0x4D R/O T0 highest memory timestamp, unsigned long
-
-#### 0x4E R/O T1 highest memory timestamp, unsigned long
-
-#### 0x4F R/O T2 highest memory timestamp, unsigned long
-
 #### 0x50 W/O Clear disconnect history
 
-#### 0x51 R/O total over-current disconnects unsigned long
+#### 0x51 R/O last disconnect reason code byte
 
-#### 0x52 R/O total under-voltage disconnects unsigned long
+#### 0x52 R/O total over-current disconnects unsigned long
 
-#### 0x53 R/O total over-voltage disconnects unsigned long
+#### 0x53 R/O total under-voltage disconnects unsigned long
 
-#### 0x54 R/O total under-temp disconnects unsigned long
+#### 0x54 R/O total over-voltage disconnects unsigned long
 
-#### 0x55 R/O total over-temp disconnects unsigned long
+#### 0x55 R/O total under-temp disconnects unsigned long
 
-#### 0x56 R/O last disconnect timestamp unsigned long
+#### 0x56 R/O total over-temp disconnects unsigned long
 
-#### 0x57 R/O last disconnect reason code byte
-
-#### 0x58 through 0x5F
+#### 0x57 through 0x5F
 
 * (reserved)
 
