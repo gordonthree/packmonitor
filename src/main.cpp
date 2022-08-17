@@ -627,9 +627,9 @@ void receiveEvent(size_t howMany) {
     // if (_isr_HostByte != 0xFF) 
     _isr_cmdData[_isr_dataLen] = _isr_HostInt; // keep reading until no more bytes available
     _isr_dataLen++;
-    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data 0x%X bytes remaining %i", _isr_cmdAddr, _isr_HostInt, howMany);
-    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    dbgMsgCnt++;                                                        // increment debug message counter
+    // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data 0x%X bytes remaining %i", _isr_cmdAddr, _isr_HostInt, howMany);
+    // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    // dbgMsgCnt++;                                                        // increment debug message counter
     howMany--;
   }
 
@@ -652,9 +652,9 @@ void receiveEvent(size_t howMany) {
       { // more than 0 bytes available, this is a write
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
         fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
-        sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
-        dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-        dbgMsgCnt++;    
+        // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
+        // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+        // dbgMsgCnt++;    
       // }
       // else
       // { // no data was sent, this is a read
