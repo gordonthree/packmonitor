@@ -35,6 +35,7 @@ const uint8_t ee_record_size    = 24;                               // save cons
 const uint8_t ee_buffer_size    = 0x7F;                             // number of recordds in the buffer array
 const uint8_t ee_start_offset   = 0x64;                             // eeprom offset is 100 bytes (0x64), save that space for other uses
 const uint8_t adcUpdateInterval = 250;                              // every 250 msec approximately
+const uint8_t framStartAddr     = 0x20;                             // starting register for fram save/load fns
 
 uint8_t   hiTalarm_cnt;                                             // counter for high temp alarm trigger
 uint8_t   loTalarm_cnt;                                             // same as above for low temop
@@ -49,6 +50,7 @@ uint8_t   framRegSize      = 24;                                    // bytes of 
 char      buff[200];                                                // temporary buffer for working with char strings
 int       I2C_CLIENT_ADDR = 0x34;                                   // base address, modified by pins PF0 / PF2
 bool      FirstRun = false;                                         // flag to init fram memory and write first-init timestamp
+int       framSaveInterval;                                         // counter indicating time interval between log writes to fram
 
 void      framSave();                                               // write in-ram buffer to fram chip
 void      framLoad();                                               // populate in-ram buffer from fram chip
@@ -140,47 +142,6 @@ void setup() {
 
   scanI2C();  // scan bus?!
 
-  
-  // Serial1.println("Starting up external ADC...");
-  // // extAdc.begin(0x2A, Wire);      // pass through TWI to adc library
-  // extAdc.begin(0x2A);               // default address
-  // extAdc.avcc4V5();                 // set voltage regulator and analog reference to internal at 4.5v
-  // extAdc.rate320sps();              // set conversion rate to 320sps
-  // // extAdc.pgaDisable();
-  
-  // Serial1.print("Calibration...");
-  // Serial1.flush();
-
-  // bool calResult = false;
-  // int  n      = 0;
-  // twClearBit(0x24, NAU7802_CTRL2, NAU7802_CALMOD0);     // Select internal offset calibration
-  // twClearBit(0x24, NAU7802_CTRL2, NAU7802_CALMOD1);     // Select internal offset calibration
-  // twWriteBit(0x24, NAU7802_CTRL2, NAU7802_CALS);        //Begin calibration
-  // while (n<5000 && calResult==false)
-  // {
-  //   calResult = twReadBit(0x24, NAU7802_CTRL2, NAU7802_CALS);
-  //   Serial1.print(".");
-  //   Serial1.flush();
-  //   n++;
-  //   delay(1);
-  // }
-
-  // calResult = twReadBit(0x24, NAU7802_CTRL2, NAU7802_CAL_ERR);
-
-  // if (calResult) Serial1.println("completed successfully.");
-  // else Serial1.println("failed!");
-
-  // extAdc.selectCh1();
-  // for (int x=0; x<50; x++)
-  // {
-  //   uint32_t rawAdc = extAdc.readADC();
-  //   Serial1.printf("%u ", rawAdc);
-  //   Serial1.flush();
-  // }
-
-  // Serial1.println("ADC startup complete!");
-  // Serial1.flush();
-
   Serial1.print("Loading data from FRAM... ");
 
   // fram.begin(ee_fram);
@@ -255,13 +216,16 @@ void loop() {
     reqEvnt  = false;             // reset flag
 
     // update current time register
-    if (timeSet) fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
+    if (timeSet) 
+    {
+      fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
 
-    // update uptime if clock has been set
-    if (firsttimeSync!=0) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
+      // update uptime if clock has been set
+      if (firsttimeSync!=0) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
 
-    // update last time sync if needed
-    if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
+      // update last time sync if needed
+      if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
+    }
   }
 
   if (iFive>5000) {              // roughly every 5 seconds
@@ -289,6 +253,7 @@ void loop() {
 }
 
 void updateReadings() {
+  float   sysVcc       = fram.getDataDouble(PM_REGISTER_VBUSVOLTS);            // grab bus voltage setpoint from configuration
   float   vBusDiv      = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
   float   vPackDiv     = fram.getDataDouble(PM_REGISTER_VPACKDIVISOR);         // resistor divider scale for pack voltage
   float   hiTemp       = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
@@ -326,8 +291,9 @@ void updateReadings() {
   float    rawDouble   = 0.0;
   uint32_t timeStamp   = now();
   uint32_t rawUlong    = 0;
-  float    sysVcc      = 5.09;
   float    loT, hiT, vBushi, vBuslo;
+
+  if (sysVcc < 1.0 || sysVcc > 5.2) sysVcc = 5.09;                             // sanity check for Vcc setting
 
   // ********** T0
   rawAdc               = readADC(ADC0, 20);                                    // update in-memory value for internal adc1
@@ -932,6 +898,7 @@ int32_t getLong(uint8_t * byteArray)
 }
 
 void printConfig(){
+  double   vBus        = fram.getDataDouble(PM_REGISTER_VBUSVOLTS);
   double   vBusDiv     = fram.getDataDouble(PM_REGISTER_VBUSDIVISOR);          // grab bus voltage divisor from buffer
   double   hiTemp      = fram.getDataDouble(PM_REGISTER_HIGHTEMPLIMIT);        // grab high temp limit value from buffer
   double   loTemp      = fram.getDataDouble(PM_REGISTER_LOWTEMPLIMIT);         // grab low temp limit value from buffer
@@ -939,27 +906,28 @@ void printConfig(){
   double   vPackLow    = fram.getDataDouble(PM_REGISTER_LOWVOLTLIMIT);
   double   vPackHigh   = fram.getDataDouble(PM_REGISTER_HIGHVOLTLIMIT);
   double   iLoadHigh   = fram.getDataDouble(PM_REGISTER_HIGHCURRENTLIMIT);
+  double   vTempDiv    = fram.getDataDouble(PM_REGISTER_THERMDIVISOR);
   double   mvA         = fram.getDataDouble(PM_REGISTER_CURRENTMVA);
   uint8_t  CONFIG0     = fram.getDataByte(PM_REGISTER_CONFIG0BYTE);
+  uint8_t  CONFIG1     = fram.getDataByte(PM_REGISTER_CONFIG1BYTE);
+  uint8_t  CONFIG2     = fram.getDataByte(PM_REGISTER_CONFIG2BYTE);
   uint32_t lastSync    = fram.getDataUInt(PM_REGISTER_TIMESYNC);
 
-  Serial1.printf("Last sync %lu\n", lastSync);
-  Serial1.printf("CONFIG0 0x%X\n", CONFIG0);
-  Serial1.printf("Current limit %f\n", iLoadHigh);
-  Serial1.printf("Low voltaget %f\n", vPackLow);
-  Serial1.printf("High voltage %f\n", vPackHigh);
-  Serial1.printf("Low temp %f\n", loTemp);
-  Serial1.printf("High temp %f\n", hiTemp);
-  Serial1.printf("vBusDiv %f\n", vBusDiv);
-  Serial1.printf("vPackDiv %f\n", vPackDiv);
-  Serial1.printf("mvA %f\n", mvA);
+  Serial1.printf("Last sync %lu\r\n", lastSync);
+  Serial1.printf("CONFIG0: 0x%X CONFIG1: 0x%X CONFIG2: 0x%X\r\n", CONFIG0, CONFIG1, CONFIG2);
+  Serial1.printf("Pack high current cut-off %.2f amps\r\n", iLoadHigh);
+  Serial1.printf("Pack voltage limits: low %.2fv high %.2fv\r\n", vPackLow, vPackHigh);
+  Serial1.printf("Pack temp limits: low %.2f°c high %.2f°c\r\n", loTemp);
+  Serial1.printf("Voltage divisors: vBus %.2f vPack %.2f vTemp %.2f\r\n", vBusDiv, vPackDiv, vTempDiv);
+  Serial1.printf("ADC calibration vBus %.2fv\r\n", vBus);
+  Serial1.printf("Current sense mvA %.3f\r\n", mvA);
 }
 
 void framLoad()
 {
-  for (uint16_t x = 0; x < ee_buffer_size; x++)
+  uint8_t byteArray[ee_record_size];
+  for (uint16_t x = framStartAddr; x < ee_buffer_size; x++)
   {
-    uint8_t byteArray[24];
     ee_fram.readBlock((x * ee_record_size) + ee_start_offset, byteArray, ee_record_size);
     fram.addArrayData(x, byteArray);
     // Serial1.printf("0x%x: ", x);
@@ -972,7 +940,7 @@ void framLoad()
 // write the buffer into the eeprom
 void framSave() 
 {
-  for (uint16_t x = 0; x < ee_buffer_size; x++)
+  for (uint16_t x = framStartAddr; x < ee_buffer_size; x++)
   {
     ee_fram.writeBlock((x * ee_record_size) + ee_start_offset, fram.getArrayData(x), ee_record_size);
   }
@@ -986,8 +954,8 @@ void framDump()
   framLoad();
   Serial1.println("done.\nPrinting memory buffer contents...");
 
-  byte xx=0x21; // start here
-  while (xx<0x65) 
+  byte xx=framStartAddr; // start here
+  while (xx<ee_buffer_size) 
   {
     Serial1.printf(
       "Addr: 0x%X TS: %lu Double: %f UINT: %lu SINT: %li RAW: %li\n",
@@ -1003,6 +971,7 @@ void framDump()
   Serial1.println("Complete.");
   dumpEEprom = false;
 }
+
 void twWrite(uint8_t addr, uint8_t reg, uint8_t val) {
   Wire.beginTransmission(addr);
   Wire.write((uint8_t)reg);
