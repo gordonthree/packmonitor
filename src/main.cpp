@@ -332,12 +332,12 @@ void updateReadings() {
   // ********** T0
   rawAdc               = readADC(ADC0, 20);                                    // update in-memory value for internal adc1
   rawDouble            = raw2temp(rawAdc);                                     // convert raw to temperature using LUT
+  fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, rawDouble);              // use LUT to find approximate temperature
   
   if (rawDouble>100.0 || rawDouble<-30.0) {                                    // test for temperature sensor error    
     tempError = true;                                                          // set temperature error flag if temp outside rational limits
   } else {                                                                     // temp seems normal, check conditions
     fram.addRaw   (PM_REGISTER_READDEGCT0, timeStamp, rawAdc);                    // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READDEGCT0, timeStamp, rawDouble);              // use LUT to find approximate temperature
 
     // update low temp record
     loT     = fram.getDataDouble(PM_REGISTER_READT0LOW);
@@ -363,12 +363,12 @@ void updateReadings() {
   // ********** T1
   rawAdc    = readADC(ADC1, 20);                                               // update value for internal adc2
   rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
+  fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, rawDouble);              // use LUT to find approximate temperature
 
   if (rawDouble>100.0 || rawDouble<-30.0) {                                    // test for temperature sensor error    
     tempError = true;                                                          // set temperature error flag if temp outside rational limits
   } else {                                                                     // temp seems normal, check conditions
     fram.addRaw   (PM_REGISTER_READDEGCT1, timeStamp, rawAdc);                    // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READDEGCT1, timeStamp, rawDouble);              // use LUT to find approximate temperature
 
     // update low temp record
     loT     = fram.getDataDouble(PM_REGISTER_READT1LOW);
@@ -394,12 +394,12 @@ void updateReadings() {
   // ********** T2
   rawAdc = readADC(ADC2, 20);                                                  // update value for internal adc3
   rawDouble = raw2temp(rawAdc);                                                // convert raw to temperature using LUT
+  fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, rawDouble);                // use LUT to find approximate temperature
 
   if (rawDouble>100.0 || rawDouble<-30.0) {                                    // test for temperature sensor error    
     tempError = true;                                                          // set temperature error flag if temp outside rational limits
   } else {                                                                     // temp seems normal, check conditions
     fram.addRaw   (PM_REGISTER_READDEGCT2, timeStamp, rawAdc);                    // store unprocessed raw value
-    fram.addDouble(PM_REGISTER_READDEGCT2, timeStamp, rawDouble);              // use LUT to find approximate temperature
 
     // update low temp record
     loT     = fram.getDataDouble(PM_REGISTER_READT2LOW);
@@ -441,40 +441,40 @@ void updateReadings() {
 
   // ********** BUS VOLTAGE
   rawAdc    = readADC(ADC5, 20);                                               // read bus voltage from internal adcd
-  rawDouble = raw2volts(rawAdc, sysVcc, vBusDiv);                                      // convert raw value into volts
+  rawDouble = raw2volts(rawAdc, sysVcc, vBusDiv);                              // convert raw value into volts
+  fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);              // commit converted value to buffer
 
   if ((rawDouble<4.20) || (rawDouble>5.30))
     STATUS1 |= 1<<PM_STATUS1_RANGEVBUS;                                        // set bus voltage error status bit
   else 
   { // bus voltage in normal range
     STATUS1 |= 0<<PM_STATUS1_RANGEVBUS;                                        // clear low bus voltage status bit
-    fram.addDouble(PM_REGISTER_READBUSVOLTS, timeStamp, rawDouble);            // commit converted value to buffer
     fram.addRaw   (PM_REGISTER_READBUSVOLTS, timeStamp, rawAdc);               // commit raw value to buffer
     vBushi  = fram.getDataDouble(PM_REGISTER_READBUSVOLTSHI);                  // read high bus voltage from memory
     framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSHI);                  // read raw high value from memory
     if (rawDouble > vBushi || framRaw == 0) 
     { // store high value
-      fram.addDouble(PM_REGISTER_READBUSVOLTSHI, timeStamp, rawDouble);            // commit converted value to buffer
-      fram.addRaw   (PM_REGISTER_READBUSVOLTSHI, timeStamp, rawAdc);               // commit raw value to buffer      
+      fram.addDouble(PM_REGISTER_READBUSVOLTSHI, timeStamp, rawDouble);        // commit converted value to buffer
+      fram.addRaw   (PM_REGISTER_READBUSVOLTSHI, timeStamp, rawAdc);           // commit raw value to buffer      
     }
     vBuslo  = fram.getDataDouble(PM_REGISTER_READBUSVOLTSLO);                  // read low bus volts from memory
     framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSLO);                  // read raw high value from memory
     if (rawDouble < vBuslo || framRaw == 0)
     { // store low value
-      fram.addDouble(PM_REGISTER_READBUSVOLTSLO, timeStamp, rawDouble);            // commit converted value to buffer
-      fram.addRaw   (PM_REGISTER_READBUSVOLTSLO, timeStamp, rawAdc);               // commit raw value to buffer      
+      fram.addDouble(PM_REGISTER_READBUSVOLTSLO, timeStamp, rawDouble);        // commit converted value to buffer
+      fram.addRaw   (PM_REGISTER_READBUSVOLTSLO, timeStamp, rawAdc);           // commit raw value to buffer      
     }
   }
 
   // ********** AMPS
   rawAdc    = readADC(ADC3, 20);
   rawDouble = raw2amps(rawAdc, sysVcc, mvA);
+  fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                    // store data
 
   // Serial1.printf("ADC3 int %i ulong %u float %.3f\r\n", rawAdc, rawUlong, rawDouble);
   if (rawDouble<-30.0 || rawDouble>30.0) loadIerror = true;                    // Current sense is out of range, malfunction
   else 
   {
-    fram.addRaw(PM_REGISTER_READLOADAMPS, timeStamp, rawAdc);                  // store data
     fram.addDouble(PM_REGISTER_READLOADAMPS, timeStamp, rawDouble);            // store amps value in memory
 
     float ampsHi  = fram.getDataDouble(PM_REGISTER_READLOADAMPSHI);
@@ -514,14 +514,12 @@ void updateReadings() {
   // ********** PACK VOLTS
   rawAdc    = readADC(ADC4, 20);
   rawDouble = raw2volts(rawAdc, sysVcc, vPackDiv);
-
-  // Serial1.printf("ADC4 int %i ulong %u float %.3f\r\n", rawAdc, rawUlong, rawDouble);
+  fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);                // store data
 
   if (rawDouble<5.5 || rawDouble>20.0) packVerror = true;                         // voltage out of bounds
   else
   { 
-    fram.addRaw   (PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                    // store data
-    fram.addDouble(PM_REGISTER_READPACKVOLTS, timeStamp, rawDouble);              // store data
+    fram.addRaw   (PM_REGISTER_READPACKVOLTS, timeStamp, rawAdc);                 // store data
 
     // update low volt record
     float loVolts = fram.getDataDouble(PM_REGISTER_READLOWVOLTS);
