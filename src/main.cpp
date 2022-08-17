@@ -444,7 +444,7 @@ void updateReadings() {
   rawDouble = raw2volts(rawAdc, sysVcc, vBusDiv);                                      // convert raw value into volts
 
   if ((rawDouble<4.20) || (rawDouble>5.30))
-    STATUS1 |= 1<<PM_STATUS1_RANGEVBUS;                                        // set low bus voltage status bit
+    STATUS1 |= 1<<PM_STATUS1_RANGEVBUS;                                        // set bus voltage error status bit
   else 
   { // bus voltage in normal range
     STATUS1 |= 0<<PM_STATUS1_RANGEVBUS;                                        // clear low bus voltage status bit
@@ -458,9 +458,9 @@ void updateReadings() {
       fram.addRaw   (PM_REGISTER_READBUSVOLTSHI, timeStamp, rawAdc);               // commit raw value to buffer      
     }
     vBuslo  = fram.getDataDouble(PM_REGISTER_READBUSVOLTSLO);                  // read low bus volts from memory
-    framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSHI);                  // read raw high value from memory
+    framRaw = fram.getRaw       (PM_REGISTER_READBUSVOLTSLO);                  // read raw high value from memory
     if (rawDouble < vBuslo || framRaw == 0)
-    {
+    { // store low value
       fram.addDouble(PM_REGISTER_READBUSVOLTSLO, timeStamp, rawDouble);            // commit converted value to buffer
       fram.addRaw   (PM_REGISTER_READBUSVOLTSLO, timeStamp, rawAdc);               // commit raw value to buffer      
     }
@@ -607,12 +607,13 @@ void updateReadings() {
 // this function is registered as an event, see setup()
 void receiveEvent(size_t howMany) {
   uint8_t          _isr_HostByte    = 0;             // byte size data 8 bits
-  double           _isr_HostDouble  = 0.0;           // double precision aka float, 32 bits
+  float            _isr_HostDouble  = 0.0;           // double precision aka float, 32 bits
   uint32_t         _isr_timeStamp   = now();         // current timestamp
   
   uint8_t          _isr_cmdAddr     = 0;             // command / register address sent by host
   uint8_t          _isr_dataLen     = 0;             // number of data bytes sent by host
   uint8_t          _isr_cmdData[64];                 // storage for incoming data from host
+  int              _isr_HostInt     = 0;
   union ulongArray  ulongbuffer;                     // convert between byte array and ulong int
 
   _isr_cmdAddr                      = Wire.read();   // read first byte, store it as command address
@@ -621,23 +622,17 @@ void receiveEvent(size_t howMany) {
   recvEvnt                          = true;          // set flag to toggle LED in loop()
   // txData.dataLen                    = _isr_dataSize; // set data length here just in case I forgot later
 
-  if (howMany<=0) 
-  {
-    i2cRegAddr = _isr_cmdAddr;
-    // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "Host reading reg 0x%X", i2cRegAddr);
-    // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    // dbgMsgCnt++;                                                        // increment debug message counter
-  }
+  i2cRegAddr = _isr_cmdAddr;
 
   while (Wire.available()) {
-    _isr_HostByte = (uint8_t) Wire.read();
+    _isr_HostInt = Wire.read();
     // if (_isr_HostByte != 0xFF) 
-    _isr_cmdData[_isr_dataLen] = _isr_HostByte; // keep reading until no more bytes available
+    _isr_cmdData[_isr_dataLen] = _isr_HostInt; // keep reading until no more bytes available
     _isr_dataLen++;
-    // sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data 0x%X", _isr_cmdAddr, _isr_HostByte);
-    // dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
-    // dbgMsgCnt++;                                                        // increment debug message counter
-
+    sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data 0x%X bytes remaining %i", _isr_cmdAddr, _isr_HostInt, howMany);
+    dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
+    dbgMsgCnt++;                                                        // increment debug message counter
+    howMany--;
   }
 
   // rxData.dataLen           = _isr_dataLen;      // store bytes sent inside struct
@@ -658,8 +653,7 @@ void receiveEvent(size_t howMany) {
       if (_isr_dataLen>0) // check if this is a read or write?
       { // more than 0 bytes available, this is a write
         _isr_HostDouble = getDouble(_isr_cmdData);                        // convert byte array into double
-        // fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
-        fram.addDouble(_isr_cmdAddr, _isr_timeStamp,  _isr_HostDouble);
+        fram.addDouble(_isr_cmdAddr, _isr_timeStamp, _isr_HostDouble);    // store a double in memory buffer
         sprintf(dbgMsgs[dbgMsgCnt].messageTxt, "RX cmd 0x%X data %f", _isr_cmdAddr, _isr_HostDouble);
         dbgMsgs[dbgMsgCnt].messageNo = dbgMsgCnt;
         dbgMsgCnt++;    
