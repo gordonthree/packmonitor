@@ -221,7 +221,7 @@ void loop() {
       fram.addUInt(PM_REGISTER_CURRENTTIME, timeStamp, timeStamp); 
 
       // update uptime if clock has been set
-      if (firsttimeSync!=0) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, timeStamp - firsttimeSync);
+      if (firsttimeSync>1000000000) fram.addUInt(PM_REGISTER_UPTIME, timeStamp, (timeStamp - firsttimeSync));
 
       // update last time sync if needed
       if (fram.getDataUInt(PM_REGISTER_TIMESYNC)!=lasttimeSync) fram.addUInt(PM_REGISTER_TIMESYNC, timeStamp, lasttimeSync);
