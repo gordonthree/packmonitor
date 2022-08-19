@@ -42,15 +42,29 @@
 #define ADC4 PIN_PD5 // PD4
 #define ADC5 PIN_PD6 // PD4
 
+// human readable pin names
+#define VBUS      PIN_PD0 // INPUT bus voltage divider
+#define TS0       PIN_PD4 // INPUT temp sensor 0
+#define TS1       PIN_PD5 // INPUT temp sensor 1
+#define TS2       PIN_PD6 // INPUT temp sensor 2
+#define VPACK     PIN_PF5 // INPUT pack voltage divider
+
+#define GATEDIS   PIN_PF2 // OUTPUT Discharge enable mosfet
+#define GATECHG   PIN_PF4 // OUTPUT Charge enable mosfet
+
+#define BUSREADY  PIN_PD1 // INPUT bus ready flag from hotswap interface, needs pullup
+#define BUSENABLE PIN_PD2 // OUTPUT enable pin hot-swap interface, active high
+
+
 // Stand alone slave-only pins
 #define SCL  PIN_PA3 // Slave TWI0
 #define SDA  PIN_PA2 // " "
 
 // Dual-mode slave pins
-#define SCL0 PIN_PA3 // Slave TWI0
-#define SDA0 PIN_PA2 // " "
+#define SCL0 PIN_PA3 // SDA_H host side bus clock PULLUP REQD
+#define SDA0 PIN_PA2 // SDA_H host side bus data PULLUP REQD
 
 // Dual-mode master pins
-#define SCL1 PIN_PF3 // Master TWI1 
-#define SDA1 PIN_PF2 // " "
+#define SCL1 PIN_PC3 // SCL_C client side bus clock PULLUP REQD
+#define SDA1 PIN_PC2 // SDA_C client side bus data PULLUP REQD
 #endif
