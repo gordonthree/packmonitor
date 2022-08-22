@@ -110,8 +110,9 @@ void setup() {
   pinMode(ADC4, INPUT); // vpack divider
   pinMode(ADC5, INPUT); // vbus
 
-  analogReference(VDD); // use VDD as the analog reference
-
+  analogReference(VDD);     // use VDD as the analog reference
+  analogReadResolution(12); // use 12-bit resolution
+  
   // init Serial port 1
   Serial1.begin(115200); 
 

@@ -64,7 +64,8 @@ float raw2amps(int32_t rawVal, float vcc, float mvA)
     float Amps    = 0.0;
     float Volts   = 0.0;
 
-    Volts = (float)(rawVal * (vcc / 1024.0)) - (vcc / 2);
+    // Volts = (float)(rawVal * (vcc / 1024.0)) - (vcc / 2); // 10-bits
+    Volts = (float)(rawVal * (vcc / 4096.0)) - (vcc / 2); // 12-bits
     Amps =  (float)Volts / mvA;
 
     return Amps;
@@ -74,7 +75,8 @@ float raw2volts(int32_t rawVal, float vcc, float scale)
 {
     float Volts   = 0.0;
   
-    Volts = (float)(rawVal * (vcc / 1024.0)) / scale;
+    // Volts = (float)(rawVal * (vcc / 1024.0)) / scale; // 10-bit resolution
+    Volts = (float)(rawVal * (vcc / 4096.0)) / scale; // 12-bit resolution
     //Amps =  (float)Volts / acsmvA;
     //adcDataBuffer[0].Amps  = Amps;
     return Volts;
@@ -91,11 +93,11 @@ float raw2volts(int32_t rawVal, float vcc, float scale)
 * \return              The temperature in 0.1 °C
 *
 */
-float raw2temp(unsigned int adc_value){
+// float raw2temp(unsigned int adc_value){
  
-  /* Read values directly from the table. */
-  return (float) NTC_table[ adc_value ] / 100.0;
-};
+//   /* Read values directly from the table. */
+//   return (float) NTC_table[ adc_value ] / 100.0;
+// };
 
 
 
