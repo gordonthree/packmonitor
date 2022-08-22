@@ -111,7 +111,6 @@ void setup() {
   pinMode(ADC5, INPUT); // vbus
 
   analogReference(VDD);     // use VDD as the analog reference
-  analogReadResolution(12); // use 12-bit resolution
   
   // init Serial port 1
   Serial1.begin(115200); 
@@ -296,6 +295,8 @@ void updateReadings() {
 
   if (sysVcc < 1.0 || sysVcc > 5.2) sysVcc = 5.09;                             // sanity check for Vcc setting
 
+  analogReadResolution(10); // use 10-bit resolution for temperatures
+
   // ********** T0
   rawAdc               = readADC(ADC0, 20);                                    // update in-memory value for internal adc1
   rawDouble            = raw2temp(rawAdc);                                     // convert raw to temperature using LUT
@@ -405,6 +406,8 @@ void updateReadings() {
     // Serial1.println("");
     tempWarn = false;}
   else STATUS0 |= 0<<PM_STATUS0_WARNTEMP;                                      // set flag in status0 register
+
+  analogReadResolution(12); // use 12-bit resolution for voltage and current
 
   // ********** BUS VOLTAGE
   rawAdc    = readADC(ADC5, 20);                                               // read bus voltage from internal adcd

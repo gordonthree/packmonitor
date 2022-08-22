@@ -93,11 +93,11 @@ float raw2volts(int32_t rawVal, float vcc, float scale)
 * \return              The temperature in 0.1 °C
 *
 */
-// float raw2temp(unsigned int adc_value){
+float raw2temp(unsigned int adc_value){
  
-//   /* Read values directly from the table. */
-//   return (float) NTC_table[ adc_value ] / 100.0;
-// };
+  /* Read values directly from the table. */
+  return (float) NTC_table[ adc_value ] / 100.0;
+};
 
 
 
